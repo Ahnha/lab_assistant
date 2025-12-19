@@ -1,27 +1,25 @@
-import '../domain/lab_run.dart';
-import '../domain/recipe_ref.dart';
+import '../domain/recipe_template.dart';
 import '../domain/recipe_kind.dart';
 import '../domain/procedure_step.dart';
 import '../domain/step_kind.dart';
 import '../domain/step_status.dart';
 import '../domain/checklist_item.dart';
 import '../domain/formula.dart';
+import '../domain/formula_phase.dart';
+import '../domain/formula_item.dart';
 import '../domain/soap_formula.dart';
 
 class SeedData {
-  static LabRun createMockSoapRun() {
+  /// Creates the default soap template.
+  static RecipeTemplate createSoapTemplate() {
     final now = DateTime.now();
-    return LabRun(
-      id: '${now.microsecondsSinceEpoch}_soap',
+    return RecipeTemplate(
+      id: 'template-soap-001',
+      name: 'Basic Cold Process Soap',
+      kind: RecipeKind.soap,
       createdAt: now,
-      recipe: RecipeRef(
-        id: 'recipe-soap-001',
-        kind: RecipeKind.soap,
-        name: 'Basic Cold Process Soap',
-        defaultBatchSizeGrams: 1000,
-      ),
-      batchCode:
-          'SOAP-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}',
+      updatedAt: now,
+      isSystem: true,
       formula: Formula(
         batchSizeGrams: 1000.0,
         oilsTotalGrams: 700.0,
@@ -62,6 +60,8 @@ class SeedData {
               'Carefully mix lye with water. Always add lye to water, never reverse. Work in well-ventilated area.',
           order: 2,
           status: StepStatus.todo,
+          ingredientSectionId: 'soap:lyeWater',
+          ingredientSectionLabel: 'Lye & Water',
         ),
         ProcedureStep(
           id: 'step-3',
@@ -70,6 +70,8 @@ class SeedData {
           description: 'Heat oils to 100-110°F (38-43°C) in a double boiler',
           order: 3,
           status: StepStatus.todo,
+          ingredientSectionId: 'soap:oils',
+          ingredientSectionLabel: 'Oils',
         ),
         ProcedureStep(
           id: 'step-4',
@@ -141,19 +143,104 @@ class SeedData {
     );
   }
 
-  static LabRun createMockCreamRun() {
+  /// Creates the default cream template with proper phases structure.
+  static RecipeTemplate createCreamTemplate() {
     final now = DateTime.now();
-    return LabRun(
-      id: '${now.microsecondsSinceEpoch}_cream',
+    return RecipeTemplate(
+      id: 'template-cream-001',
+      name: 'Moisturizing Face Cream',
+      kind: RecipeKind.cream,
       createdAt: now,
-      recipe: RecipeRef(
-        id: 'recipe-cream-001',
-        kind: RecipeKind.cream,
-        name: 'Moisturizing Face Cream',
-        defaultBatchSizeGrams: 500,
+      updatedAt: now,
+      isSystem: true,
+      formula: Formula(
+        batchSizeGrams: 500.0,
+        phases: [
+          FormulaPhase(
+            id: 'pA',
+            name: 'Water Phase',
+            order: 1,
+            totalGrams: 300,
+            items: [
+              FormulaItem(
+                id: 'item-1',
+                name: 'Distilled Water',
+                grams: 250.0,
+                percent: 50.0,
+              ),
+              FormulaItem(
+                id: 'item-2',
+                name: 'Glycerin',
+                grams: 30.0,
+                percent: 6.0,
+                notes: 'Humectant',
+              ),
+              FormulaItem(
+                id: 'item-3',
+                name: 'Aloe Vera Gel',
+                grams: 20.0,
+                percent: 4.0,
+                notes: 'Optional',
+              ),
+            ],
+          ),
+          FormulaPhase(
+            id: 'pB',
+            name: 'Oil Phase',
+            order: 2,
+            totalGrams: 180,
+            items: [
+              FormulaItem(
+                id: 'item-4',
+                name: 'Emulsifying Wax',
+                grams: 50.0,
+                percent: 10.0,
+                notes: 'Primary emulsifier',
+              ),
+              FormulaItem(
+                id: 'item-5',
+                name: 'Shea Butter',
+                grams: 60.0,
+                percent: 12.0,
+              ),
+              FormulaItem(
+                id: 'item-6',
+                name: 'Jojoba Oil',
+                grams: 40.0,
+                percent: 8.0,
+              ),
+              FormulaItem(
+                id: 'item-7',
+                name: 'Coconut Oil',
+                grams: 30.0,
+                percent: 6.0,
+              ),
+            ],
+          ),
+          FormulaPhase(
+            id: 'pC',
+            name: 'Cooldown',
+            order: 3,
+            totalGrams: 20,
+            items: [
+              FormulaItem(
+                id: 'item-8',
+                name: 'Preservative',
+                grams: 10.0,
+                percent: 2.0,
+                notes: 'Add below 40°C',
+              ),
+              FormulaItem(
+                id: 'item-9',
+                name: 'Fragrance Oil',
+                grams: 10.0,
+                percent: 2.0,
+                notes: 'Optional',
+              ),
+            ],
+          ),
+        ],
       ),
-      batchCode:
-          'CREAM-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}',
       steps: [
         ProcedureStep(
           id: 'step-1',
@@ -163,6 +250,8 @@ class SeedData {
               'Combine water, glycerin, and water-soluble ingredients. Heat to 70°C.',
           order: 1,
           status: StepStatus.todo,
+          ingredientSectionId: 'phase:pA',
+          ingredientSectionLabel: 'Phase A',
         ),
         ProcedureStep(
           id: 'step-2',
@@ -171,6 +260,8 @@ class SeedData {
           description: 'Combine oils, butters, and emulsifiers. Heat to 70°C.',
           order: 2,
           status: StepStatus.todo,
+          ingredientSectionId: 'phase:pB',
+          ingredientSectionLabel: 'Phase B',
         ),
         ProcedureStep(
           id: 'step-3',
@@ -193,54 +284,46 @@ class SeedData {
         ),
         ProcedureStep(
           id: 'step-5',
-          kind: StepKind.timer,
-          title: 'Cool Down Phase',
-          description: 'Allow mixture to cool to 40°C before adding actives',
+          kind: StepKind.section,
+          title: 'Cooldown',
+          description: 'Cool below ~40°C',
           order: 5,
           status: StepStatus.todo,
-          timerSeconds: 30 * 60, // 30 minutes
         ),
         ProcedureStep(
           id: 'step-6',
           kind: StepKind.instruction,
-          title: 'Add Active Ingredients',
-          description:
-              'Add vitamins, extracts, and other heat-sensitive actives',
+          title: 'Add Phase C (Cooldown)',
+          description: 'Add Phase C ingredients and mix thoroughly',
           order: 6,
           status: StepStatus.todo,
+          ingredientSectionId: 'phase:pC',
+          ingredientSectionLabel: 'Phase C',
         ),
         ProcedureStep(
           id: 'step-7',
-          kind: StepKind.instruction,
-          title: 'Add Preservative',
-          description: 'Add preservative and mix thoroughly',
-          order: 7,
-          status: StepStatus.todo,
-        ),
-        ProcedureStep(
-          id: 'step-8',
           kind: StepKind.inputNumber,
           title: 'pH Check',
           description: 'Measure and record pH of final product',
-          order: 8,
+          order: 7,
           status: StepStatus.todo,
           unit: 'pH',
           value: null,
         ),
         ProcedureStep(
-          id: 'step-9',
+          id: 'step-8',
           kind: StepKind.note,
           title: 'Quality Notes',
           description: 'Record texture, color, and any observations',
-          order: 9,
+          order: 8,
           status: StepStatus.todo,
         ),
         ProcedureStep(
-          id: 'step-10',
+          id: 'step-9',
           kind: StepKind.checklist,
           title: 'Fill Containers',
           description: 'Fill and label containers',
-          order: 10,
+          order: 9,
           status: StepStatus.todo,
           items: [
             ChecklistItem(id: 'item-1', label: 'Containers sanitized'),

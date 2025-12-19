@@ -5,6 +5,7 @@ import '../../domain/procedure_step.dart';
 import '../../domain/step_status.dart';
 import '../../domain/step_kind.dart';
 import '../../domain/checklist_item.dart';
+import '../../domain/ingredient_section_helper.dart';
 import '../../data/lab_run_repository.dart';
 import '../../app/log.dart';
 
@@ -16,6 +17,7 @@ import '../../app/log.dart';
 /// - Triggers debounced saves via repository (only on user actions, never on timer ticks)
 /// - Notifies listeners when state changes
 /// - Manages timer state and logic for timer steps
+/// - Manages navigation context for ingredients (section tracking, auto-complete)
 class RunController extends ChangeNotifier {
   final LabRunRepository _repository = LabRunRepository();
   LabRun _run;
@@ -23,6 +25,15 @@ class RunController extends ChangeNotifier {
   bool _isSaving = false;
   final Map<String, Timer> _activeTimers = {};
   Function(String stepId, String stepTitle)? onTimerFinished;
+  Function(String sectionId, String stepId)? onSectionCompleted;
+
+  // Navigation context for ingredients
+  String? _activeIngredientSectionId;
+  String?
+  _sourceStepId; // Step that opened ingredients (null if opened manually)
+
+  String? get activeIngredientSectionId => _activeIngredientSectionId;
+  String? get sourceStepId => _sourceStepId;
 
   RunController(this._run) {
     // Restore running timers from persisted state
@@ -106,7 +117,10 @@ class RunController extends ChangeNotifier {
         steps: updatedSteps,
         notes: _run.notes,
         archived: _run.archived,
+        finishedAt: _run.finishedAt,
         formula: _run.formula,
+        templateId: _run.templateId,
+        ingredientChecks: _run.ingredientChecks,
       );
       notifyListeners();
     }
@@ -163,11 +177,147 @@ class RunController extends ChangeNotifier {
       steps: updatedSteps,
       notes: _run.notes,
       archived: _run.archived,
+      finishedAt: _run.finishedAt,
       formula: _run.formula,
+      templateId: _run.templateId,
+      ingredientChecks: _run.ingredientChecks,
     );
 
     notifyListeners();
     _debouncedSave();
+  }
+
+  /// Opens ingredients view for a specific section, tracking the source step.
+  /// This is called when user taps "Ingredients → <section>" from a step card.
+  void openIngredientsForSection(String sectionId, String? sourceStepId) {
+    _activeIngredientSectionId = sectionId;
+    _sourceStepId = sourceStepId;
+    Log.d(
+      'RunController',
+      'Opened ingredients for section: $sectionId (from step: $sourceStepId)',
+    );
+    notifyListeners();
+  }
+
+  /// Clears the navigation context (e.g., when user manually opens ingredients tab).
+  void clearIngredientsContext() {
+    _activeIngredientSectionId = null;
+    _sourceStepId = null;
+    notifyListeners();
+  }
+
+  /// Toggles an ingredient check state.
+  /// Key format: "phase:<phaseId>:<itemId>" for cream, "soap:oils:<oilId>" for soap oils
+  /// Triggers debounced save.
+  /// Also checks if ANY section is complete and auto-completes the corresponding step if needed.
+  void toggleIngredientCheck(String key) {
+    final updatedChecks = Map<String, bool>.from(_run.ingredientChecks);
+    updatedChecks[key] = !(updatedChecks[key] ?? false);
+
+    _run = LabRun(
+      id: _run.id,
+      createdAt: _run.createdAt,
+      recipe: _run.recipe,
+      batchCode: _run.batchCode,
+      steps: _run.steps,
+      notes: _run.notes,
+      archived: _run.archived,
+      finishedAt: _run.finishedAt,
+      formula: _run.formula,
+      templateId: _run.templateId,
+      ingredientChecks: updatedChecks,
+    );
+
+    Log.d('RunController', 'Ingredient checked: $key');
+
+    // Check ALL sections for completion (not just the active one)
+    // This ensures auto-return works for any section, regardless of how user navigated to it
+    _checkAllSectionsForCompletion();
+
+    notifyListeners();
+    _debouncedSave();
+  }
+
+  /// Checks ALL ingredient sections for completion and auto-completes
+  /// the corresponding steps if all ingredients in a section are checked.
+  /// This works for any section (Phase A/B/C, soap oils, etc.), not just the active one.
+  void _checkAllSectionsForCompletion() {
+    // Get all unique section IDs from steps
+    final sectionIds = <String>{};
+    for (final step in _run.steps) {
+      if (step.ingredientSectionId != null) {
+        sectionIds.add(step.ingredientSectionId!);
+      }
+    }
+
+    if (sectionIds.isEmpty) {
+      return; // No sections to check
+    }
+
+    // Check each section for completion
+    for (final sectionId in sectionIds) {
+      final sectionKeys = IngredientSectionHelper.getSectionKeys(_run, sectionId);
+
+      if (sectionKeys.isEmpty) {
+        continue; // Skip sections with no checkable items
+      }
+
+      // Check if all keys for this section are checked
+      final allChecked = sectionKeys.every(
+        (key) => _run.ingredientChecks[key] == true,
+      );
+
+      if (allChecked) {
+        // Find the step that references this section
+        final step = _run.steps.firstWhere(
+          (s) => s.ingredientSectionId == sectionId,
+          orElse: () => _run.steps.first, // Fallback (shouldn't happen)
+        );
+
+        // Only auto-complete if the step is not already done
+        if (step.status != StepStatus.done) {
+          // Auto-complete the step
+          setStepStatus(step.id, StepStatus.done);
+          Log.d(
+            'RunController',
+            'Section complete: $sectionId -> auto-done step ${step.id}',
+          );
+
+          // Clear active context if this was the active section
+          if (_activeIngredientSectionId == sectionId) {
+            _activeIngredientSectionId = null;
+            _sourceStepId = null;
+          }
+
+          // Notify that we should navigate back to steps and focus next step
+          notifyListeners();
+
+          // Call the completion callback to trigger navigation
+          onSectionCompleted?.call(sectionId, step.id);
+
+          // Only process one completion per toggle to avoid multiple navigations
+          break;
+        }
+      }
+    }
+  }
+
+  /// Gets the next step ID after the given step ID.
+  /// Returns null if there's no next step.
+  String? getNextStepId(String stepId) {
+    final stepIndex = _run.steps.indexWhere((s) => s.id == stepId);
+    if (stepIndex < 0 || stepIndex >= _run.steps.length - 1) {
+      return null;
+    }
+
+    // Find next non-section step
+    for (int i = stepIndex + 1; i < _run.steps.length; i++) {
+      if (_run.steps[i].kind != StepKind.section) {
+        return _run.steps[i].id;
+      }
+    }
+
+    return null;
   }
 
   /// Sets the numeric input value for a step.
@@ -206,7 +356,10 @@ class RunController extends ChangeNotifier {
       steps: updatedSteps,
       notes: _run.notes,
       archived: _run.archived,
+      finishedAt: _run.finishedAt,
       formula: _run.formula,
+      templateId: _run.templateId,
+      ingredientChecks: _run.ingredientChecks,
     );
 
     notifyListeners();
@@ -249,7 +402,10 @@ class RunController extends ChangeNotifier {
       steps: updatedSteps,
       notes: _run.notes,
       archived: _run.archived,
+      finishedAt: _run.finishedAt,
       formula: _run.formula,
+      templateId: _run.templateId,
+      ingredientChecks: _run.ingredientChecks,
     );
 
     notifyListeners();
@@ -267,7 +423,10 @@ class RunController extends ChangeNotifier {
       steps: _run.steps,
       notes: notes,
       archived: _run.archived,
+      finishedAt: _run.finishedAt,
       formula: _run.formula,
+      templateId: _run.templateId,
+      ingredientChecks: _run.ingredientChecks,
     );
 
     notifyListeners();
@@ -288,7 +447,10 @@ class RunController extends ChangeNotifier {
       steps: updatedSteps,
       notes: _run.notes,
       archived: _run.archived,
+      finishedAt: _run.finishedAt,
       formula: _run.formula,
+      templateId: _run.templateId,
+      ingredientChecks: _run.ingredientChecks,
     );
 
     notifyListeners();
@@ -391,7 +553,10 @@ class RunController extends ChangeNotifier {
       steps: resetSteps,
       notes: _run.notes,
       archived: _run.archived,
+      finishedAt: _run.finishedAt,
       formula: _run.formula,
+      templateId: _run.templateId,
+      ingredientChecks: _run.ingredientChecks,
     );
 
     notifyListeners();
@@ -560,7 +725,69 @@ class RunController extends ChangeNotifier {
       steps: updatedSteps,
       notes: _run.notes,
       archived: _run.archived,
+      finishedAt: _run.finishedAt,
       formula: _run.formula,
+      templateId: _run.templateId,
+      ingredientChecks: _run.ingredientChecks,
+    );
+
+    notifyListeners();
+    _debouncedSave();
+  }
+
+  /// Toggles timer step status between done and todo.
+  /// Triggers save.
+  void toggleTimerStatus(String stepId) {
+    final stepIndex = _run.steps.indexWhere((s) => s.id == stepId);
+    if (stepIndex < 0) return;
+
+    final step = _run.steps[stepIndex];
+    if (step.kind != StepKind.timer) return;
+
+    _activeTimers[stepId]?.cancel();
+    _activeTimers.remove(stepId);
+
+    final newStatus = step.status == StepStatus.done
+        ? StepStatus.todo
+        : StepStatus.done;
+    final newTimerState = newStatus == StepStatus.done
+        ? (step.timerState == TimerState.finished
+              ? TimerState.finished
+              : TimerState.idle)
+        : TimerState.idle;
+
+    final updatedStep = ProcedureStep(
+      id: step.id,
+      kind: step.kind,
+      title: step.title,
+      description: step.description,
+      order: step.order,
+      status: newStatus,
+      timerSeconds: step.timerSeconds,
+      remainingSeconds: newStatus == StepStatus.todo
+          ? step.timerSeconds
+          : step.remainingSeconds,
+      timerState: newTimerState,
+      timerStartedAt: newStatus == StepStatus.todo ? null : step.timerStartedAt,
+      ingredientSectionId: step.ingredientSectionId,
+      ingredientSectionLabel: step.ingredientSectionLabel,
+    );
+
+    final updatedSteps = List<ProcedureStep>.from(_run.steps);
+    updatedSteps[stepIndex] = updatedStep;
+
+    _run = LabRun(
+      id: _run.id,
+      createdAt: _run.createdAt,
+      recipe: _run.recipe,
+      batchCode: _run.batchCode,
+      steps: updatedSteps,
+      notes: _run.notes,
+      archived: _run.archived,
+      finishedAt: _run.finishedAt,
+      formula: _run.formula,
+      templateId: _run.templateId,
+      ingredientChecks: _run.ingredientChecks,
     );
 
     notifyListeners();
@@ -568,7 +795,8 @@ class RunController extends ChangeNotifier {
   }
 
   /// Skips a timer step.
-  /// Triggers save.
+  /// Sets status to done, timerState to finished, remainingSeconds to 0.
+  /// Triggers save once (no tick saves).
   void skipTimer(String stepId) {
     final stepIndex = _run.steps.indexWhere((s) => s.id == stepId);
     if (stepIndex < 0) return;
@@ -585,10 +813,10 @@ class RunController extends ChangeNotifier {
       title: step.title,
       description: step.description,
       order: step.order,
-      status: StepStatus.skipped,
+      status: StepStatus.done,
       timerSeconds: step.timerSeconds,
-      remainingSeconds: step.remainingSeconds,
-      timerState: step.timerState,
+      remainingSeconds: 0,
+      timerState: TimerState.finished,
       timerStartedAt: step.timerStartedAt,
       ingredientSectionId: step.ingredientSectionId,
       ingredientSectionLabel: step.ingredientSectionLabel,
@@ -605,11 +833,14 @@ class RunController extends ChangeNotifier {
       steps: updatedSteps,
       notes: _run.notes,
       archived: _run.archived,
+      finishedAt: _run.finishedAt,
       formula: _run.formula,
+      templateId: _run.templateId,
+      ingredientChecks: _run.ingredientChecks,
     );
 
     notifyListeners();
-    _debouncedSave();
+    _saveImmediately(); // Save once, no debounce
   }
 
   /// Marks timer as finished when it reaches 0.
@@ -634,6 +865,34 @@ class RunController extends ChangeNotifier {
     if (onTimerFinished != null) {
       onTimerFinished!(stepId, step.title);
     }
+  }
+
+  /// Finishes the run: sets finishedAt, archived = true, and saves.
+  /// Returns the updated run.
+  /// Prevents overwriting finishedAt if run is already archived.
+  Future<void> finishRun() async {
+    // Guard: Don't overwrite finishedAt if run is already archived
+    if (_run.archived && _run.finishedAt != null) {
+      return;
+    }
+
+    _run = LabRun(
+      id: _run.id,
+      createdAt: _run.createdAt,
+      recipe: _run.recipe,
+      batchCode: _run.batchCode,
+      steps: _run.steps,
+      notes: _run.notes,
+      archived: true,
+      finishedAt: DateTime.now(),
+      formula: _run.formula,
+      templateId: _run.templateId,
+      ingredientChecks: _run.ingredientChecks,
+    );
+    Log.d('RunController', 'Run finished -> archived: ${_run.id}');
+
+    notifyListeners();
+    await _saveImmediately();
   }
 
   /// Helper to update timer step state
@@ -673,7 +932,10 @@ class RunController extends ChangeNotifier {
       steps: updatedSteps,
       notes: _run.notes,
       archived: _run.archived,
+      finishedAt: _run.finishedAt,
       formula: _run.formula,
+      templateId: _run.templateId,
+      ingredientChecks: _run.ingredientChecks,
     );
 
     notifyListeners();

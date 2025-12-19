@@ -103,12 +103,13 @@ class ChecklistStepWidget extends StatelessWidget {
                 ),
               ),
             ],
-            if (step.ingredientSectionId != null &&
-                onNavigateToIngredients != null) ...[
-              const SizedBox(height: 12),
-              _buildIngredientLink(context),
-            ],
             if (step.items != null && step.items!.isNotEmpty) ...[
+              if (step.ingredientSectionId != null &&
+                  onNavigateToIngredients != null) ...[
+                const SizedBox(height: 12),
+                _buildIngredientChip(context),
+                const SizedBox(height: 12),
+              ],
               const SizedBox(height: 16),
               ...step.items!.asMap().entries.map((entry) {
                 final item = entry.value;
@@ -160,7 +161,7 @@ class ChecklistStepWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildIngredientLink(BuildContext context) {
+  Widget _buildIngredientChip(BuildContext context) {
     final label = step.ingredientSectionLabel ?? 'Ingredients';
     return InkWell(
       onTap: onNavigateToIngredients,
@@ -171,8 +172,9 @@ class ChecklistStepWidget extends StatelessWidget {
           color: Theme.of(context).colorScheme.primaryContainer,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Wrap(
+          spacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
               'Ingredients → $label',
@@ -181,7 +183,6 @@ class ChecklistStepWidget extends StatelessWidget {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(width: 4),
             Icon(
               Icons.arrow_forward,
               size: 16,

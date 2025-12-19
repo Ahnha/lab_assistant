@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/lab_run_repository.dart';
-import '../../data/lab_run_store.dart';
 import '../../data/app_settings.dart';
-import '../../data/seed_data.dart';
 import '../../domain/lab_run.dart';
 import '../../utils/date_formatter.dart';
 import '../../app/log.dart';
@@ -20,7 +18,6 @@ class InboxMasterDetailScreen extends StatefulWidget {
 
 class _InboxMasterDetailScreenState extends State<InboxMasterDetailScreen> {
   final LabRunRepository _repository = LabRunRepository();
-  final LabRunStore _store = LabRunStore();
   List<LabRun> _runs = [];
   bool _isLoading = true;
   LabRun? _selectedRun;
@@ -48,35 +45,17 @@ class _InboxMasterDetailScreenState extends State<InboxMasterDetailScreen> {
       _isLoading = true;
     });
     final activeRuns = await _repository.loadActiveRuns();
-    if (activeRuns.isEmpty) {
-      // Seed with mock data
-      final soapRun = SeedData.createMockSoapRun();
-      final creamRun = SeedData.createMockCreamRun();
-      await _store.saveRun(soapRun);
-      await _store.saveRun(creamRun);
-      final updatedRuns = await _repository.loadActiveRuns();
-      setState(() {
-        _runs = updatedRuns;
-        _isLoading = false;
-      });
-      // Auto-select first run if available
-      if (updatedRuns.isNotEmpty) {
-        _selectedRun = updatedRuns.first;
-        _selectedRunId = updatedRuns.first.id;
-      }
-    } else {
-      setState(() {
-        _runs = activeRuns;
-        _isLoading = false;
-      });
-      // Auto-select first run if available and none selected
-      if (activeRuns.isNotEmpty && _selectedRun == null) {
-        _selectedRun = activeRuns.firstWhere(
-          (r) => r.id == _selectedRunId,
-          orElse: () => activeRuns.first,
-        );
-        _selectedRunId = _selectedRun!.id;
-      }
+    setState(() {
+      _runs = activeRuns;
+      _isLoading = false;
+    });
+    // Auto-select first run if available and none selected
+    if (activeRuns.isNotEmpty && _selectedRun == null) {
+      _selectedRun = activeRuns.firstWhere(
+        (r) => r.id == _selectedRunId,
+        orElse: () => activeRuns.first,
+      );
+      _selectedRunId = _selectedRun!.id;
     }
   }
 

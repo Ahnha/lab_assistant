@@ -5,10 +5,10 @@ import '../../domain/lab_run_parser.dart';
 import '../../domain/lab_run_validator.dart';
 import '../../app/log.dart';
 import '../../app/ui_tokens.dart';
-import '../../app/widgets/app_card.dart';
-import '../../app/widgets/section_header.dart';
-import '../../app/widgets/primary_button.dart';
-import '../../app/widgets/secondary_button.dart';
+import '../templates/templates_screen.dart';
+import 'components/settings_section.dart';
+import 'components/settings_toggle_row.dart';
+import 'components/import_run_card.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VoidCallback? onSettingsChanged;
@@ -25,11 +25,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final LabRunRepository _repository = LabRunRepository();
   List<String> _errorMessages = [];
   bool _labModeEnabled = false;
+  bool _autoReturnEnabled = true;
 
   @override
   void initState() {
     super.initState();
     _loadLabModeSetting();
+    _loadAutoReturnSetting();
   }
 
   @override
@@ -53,6 +55,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _labModeEnabled = value;
     });
     widget.onSettingsChanged?.call();
+  }
+
+  Future<void> _loadAutoReturnSetting() async {
+    final enabled = await AppSettings.isAutoReturnEnabled();
+    if (mounted) {
+      setState(() {
+        _autoReturnEnabled = enabled;
+      });
+    }
+  }
+
+  Future<void> _toggleAutoReturn(bool value) async {
+    await AppSettings.setAutoReturnEnabled(value);
+    setState(() {
+      _autoReturnEnabled = value;
+    });
   }
 
   Future<void> _importRun() async {
@@ -105,6 +123,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SnackBar(content: Text('Run imported successfully')),
         );
         _jsonController.clear();
+        setState(() {
+          _errorMessages = [];
+        });
       }
     } catch (e) {
       Log.d('SettingsScreen', 'Import failure: $e');
@@ -119,148 +140,98 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings'), centerTitle: true),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(UITokens.spacingL),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'App Version',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _appVersion,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  ],
-                ),
+            // App Version Section
+            SettingsSection(
+              title: 'App Version',
+              child: Text(
+                _appVersion,
+                style: Theme.of(context).textTheme.bodyLarge,
               ),
             ),
-            const SizedBox(height: 24),
-            Card(
-              child: SwitchListTile(
-                title: Text(
-                  'Lab Mode',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                subtitle: Text(
-                  'Improve readability with larger text and increased padding',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                value: _labModeEnabled,
-                onChanged: _toggleLabMode,
+            const SizedBox(height: UITokens.spacingXXL),
+
+            // Preferences Section
+            SettingsSection(
+              title: 'Preferences',
+              child: Column(
+                children: [
+                  SettingsToggleRow(
+                    label: 'Lab Mode',
+                    description:
+                        'Improve readability with larger text and increased padding',
+                    value: _labModeEnabled,
+                    onChanged: _toggleLabMode,
+                  ),
+                  const Divider(height: 1),
+                  SettingsToggleRow(
+                    label: 'Auto-return to Steps when section complete',
+                    description:
+                        'Automatically navigate back to Steps tab when an ingredient section is completed',
+                    value: _autoReturnEnabled,
+                    onChanged: _toggleAutoReturn,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Import Run (Paste JSON)',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                Row(
+            const SizedBox(height: UITokens.spacingXXL),
+
+            // Templates Section
+            SettingsSection(
+              title: 'Templates',
+              child: ListTile(
+                leading: const Icon(Icons.description_outlined),
+                title: const Text('Recipe Templates'),
+                subtitle: const Text('View and manage recipe templates'),
+                trailing: const Icon(Icons.chevron_right),
+                contentPadding: EdgeInsets.zero,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const TemplatesScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: UITokens.spacingXXL),
+
+            // Import / Export Section
+            SettingsSection(
+              title: 'Import / Export',
+              description:
+                  'Paste JSON exported from this app to recreate a run.',
+              child: ImportRunCard(
+                controller: _jsonController,
+                onImport: _importRun,
+                errorMessages: _errorMessages.isNotEmpty
+                    ? _errorMessages
+                    : null,
+                rightHeaderActions: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     TextButton.icon(
                       onPressed: () {
                         _jsonController.text = _getSampleSoapJson();
                       },
-                      icon: const Icon(Icons.content_copy),
-                      label: const Text('Soap'),
+                      icon: const Icon(Icons.content_copy, size: 18),
+                      label: const Text('Sample: Soap'),
                     ),
+                    const SizedBox(width: UITokens.spacingXS),
                     TextButton.icon(
                       onPressed: () {
                         _jsonController.text = _getSampleCreamJson();
                       },
-                      icon: const Icon(Icons.content_copy),
-                      label: const Text('Cream'),
+                      icon: const Icon(Icons.content_copy, size: 18),
+                      label: const Text('Sample: Cream'),
                     ),
                   ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _jsonController,
-              maxLines: null,
-              minLines: 10,
-              decoration: InputDecoration(
-                hintText: 'Paste JSON data here',
-                border: const OutlineInputBorder(),
-                filled: true,
-                fillColor: Theme.of(
-                  context,
-                ).colorScheme.surfaceContainerHighest,
               ),
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
-            ),
-            if (_errorMessages.isNotEmpty) ...[
-              const SizedBox(height: UITokens.spacingL),
-              Container(
-                padding: UITokens.paddingM,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.errorContainer,
-                  borderRadius: UITokens.borderRadiusS,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          color: Theme.of(context).colorScheme.onErrorContainer,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _errorMessages.length == 1
-                                ? _errorMessages.first
-                                : 'Found ${_errorMessages.length} errors:',
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onErrorContainer,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (_errorMessages.length > 1) ...[
-                      const SizedBox(height: UITokens.spacingS),
-                      ..._errorMessages.map(
-                        (error) => Padding(
-                          padding: const EdgeInsets.only(
-                            left: UITokens.spacingXXXL,
-                            top: UITokens.spacingXS,
-                          ),
-                          child: Text(
-                            '• $error',
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onErrorContainer,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: UITokens.spacingL),
-            PrimaryButton(
-              label: 'Import Run',
-              icon: Icons.upload_file,
-              onPressed: _importRun,
             ),
           ],
         ),

@@ -9,6 +9,7 @@ class TimerStepWidget extends StatelessWidget {
   final VoidCallback? onReset;
   final VoidCallback? onMarkDone;
   final VoidCallback? onSkip;
+  final VoidCallback? onToggleStatus;
   final VoidCallback? onNavigateToIngredients;
 
   const TimerStepWidget({
@@ -19,6 +20,7 @@ class TimerStepWidget extends StatelessWidget {
     this.onReset,
     this.onMarkDone,
     this.onSkip,
+    this.onToggleStatus,
     this.onNavigateToIngredients,
   });
 
@@ -56,11 +58,6 @@ class TimerStepWidget extends StatelessWidget {
                 ),
               ),
             ],
-            if (step.ingredientSectionId != null &&
-                onNavigateToIngredients != null) ...[
-              const SizedBox(height: 12),
-              _buildIngredientLink(context),
-            ],
             const SizedBox(height: 24),
             Center(
               child: Text(
@@ -77,6 +74,9 @@ class TimerStepWidget extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
+                if (step.ingredientSectionId != null &&
+                    onNavigateToIngredients != null)
+                  _buildIngredientChip(context),
                 if (!isRunning && remainingSeconds > 0)
                   FilledButton.icon(
                     onPressed: onStart,
@@ -102,6 +102,12 @@ class TimerStepWidget extends StatelessWidget {
                     icon: const Icon(Icons.check),
                     label: const Text('Mark Done'),
                   ),
+                if (step.status == StepStatus.done && onToggleStatus != null)
+                  OutlinedButton.icon(
+                    onPressed: onToggleStatus,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Mark Todo'),
+                  ),
                 if (step.status != StepStatus.done &&
                     step.status != StepStatus.skipped)
                   OutlinedButton.icon(
@@ -117,7 +123,7 @@ class TimerStepWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildIngredientLink(BuildContext context) {
+  Widget _buildIngredientChip(BuildContext context) {
     final label = step.ingredientSectionLabel ?? 'Ingredients';
     return InkWell(
       onTap: onNavigateToIngredients,
@@ -128,8 +134,9 @@ class TimerStepWidget extends StatelessWidget {
           color: Theme.of(context).colorScheme.primaryContainer,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Wrap(
+          spacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
               'Ingredients → $label',
@@ -138,7 +145,6 @@ class TimerStepWidget extends StatelessWidget {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(width: 4),
             Icon(
               Icons.arrow_forward,
               size: 16,

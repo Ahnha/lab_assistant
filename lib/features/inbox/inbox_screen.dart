@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:convert';
 import '../../data/lab_run_repository.dart';
-import '../../data/lab_run_store.dart';
-import '../../data/app_settings.dart';
-import '../../data/seed_data.dart';
 import '../../domain/lab_run.dart';
 import '../../utils/date_formatter.dart';
 import '../../app/log.dart';
 import '../../app/ui_tokens.dart';
-import '../../app/widgets/app_card.dart';
 import '../../app/widgets/primary_button.dart';
 import '../../app/widgets/secondary_button.dart';
 import '../run/run_detail_screen.dart';
@@ -22,7 +20,6 @@ class InboxScreen extends StatefulWidget {
 
 class _InboxScreenState extends State<InboxScreen> {
   final LabRunRepository _repository = LabRunRepository();
-  final LabRunStore _store = LabRunStore(); // Still needed for seed data
   List<LabRun> _runs = [];
   bool _isLoading = true;
   bool _labModeEnabled = false;
@@ -38,23 +35,10 @@ class _InboxScreenState extends State<InboxScreen> {
       _isLoading = true;
     });
     final activeRuns = await _repository.loadActiveRuns();
-    if (activeRuns.isEmpty) {
-      // Seed with mock data
-      final soapRun = SeedData.createMockSoapRun();
-      final creamRun = SeedData.createMockCreamRun();
-      await _store.saveRun(soapRun);
-      await _store.saveRun(creamRun);
-      final updatedRuns = await _repository.loadActiveRuns();
-      setState(() {
-        _runs = updatedRuns;
-        _isLoading = false;
-      });
-    } else {
-      setState(() {
-        _runs = activeRuns;
-        _isLoading = false;
-      });
-    }
+    setState(() {
+      _runs = activeRuns;
+      _isLoading = false;
+    });
   }
 
   @override
@@ -249,6 +233,63 @@ class _InboxScreenState extends State<InboxScreen> {
           duration: const Duration(seconds: 4),
         ),
       );
+    }
+  }
+
+  Future<void> _archiveRun(LabRun run) async {
+    Log.d('InboxScreen', 'Archiving run: ${run.id}');
+    final archivedRun = LabRun(
+      id: run.id,
+      createdAt: run.createdAt,
+      recipe: run.recipe,
+      batchCode: run.batchCode,
+      steps: run.steps,
+      notes: run.notes,
+      archived: true,
+      finishedAt: run.finishedAt ?? DateTime.now(),
+      formula: run.formula,
+      templateId: run.templateId,
+      ingredientChecks: run.ingredientChecks,
+    );
+    await _repository.save(archivedRun);
+    _loadRuns();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Run archived'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _exportRun(LabRun run) async {
+    try {
+      const encoder = JsonEncoder.withIndent('  ');
+      final formattedJson = encoder.convert(run.toJson());
+
+      await Clipboard.setData(ClipboardData(text: formattedJson));
+      Log.d('InboxScreen', 'Exported run to clipboard: ${run.id}');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Copied'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      Log.d('InboxScreen', 'Export failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to export: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 }

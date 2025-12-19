@@ -5,21 +5,23 @@ import '../../../domain/formula_phase.dart';
 import '../../../domain/formula_item.dart';
 import '../../../domain/formula.dart';
 import '../../../domain/lab_run_scaler.dart';
+import '../../../domain/ingredient_section_helper.dart';
 import '../../../utils/decimal_input_formatter.dart';
 import '../../../app/ui_tokens.dart';
 import '../../../app/widgets/app_card.dart';
-import '../../../app/widgets/section_header.dart';
 
 class IngredientsView extends StatefulWidget {
   final LabRun run;
   final Function(LabRun)? onRunUpdated;
   final ScrollController? scrollController;
+  final Function(String)? onIngredientCheckToggled;
 
   const IngredientsView({
     super.key,
     required this.run,
     this.onRunUpdated,
     this.scrollController,
+    this.onIngredientCheckToggled,
   });
 
   @override
@@ -236,7 +238,12 @@ class IngredientsViewState extends State<IngredientsView> {
             final sectionKey = _sectionKeys[keyId];
             return Padding(
               padding: const EdgeInsets.only(bottom: 24),
-              child: PhaseSection(phase: phase, sectionKey: sectionKey),
+              child: PhaseSection(
+                phase: phase,
+                sectionKey: sectionKey,
+                run: _run,
+                onIngredientCheckToggled: widget.onIngredientCheckToggled,
+              ),
             );
           }),
         ],
@@ -275,49 +282,76 @@ class IngredientsViewState extends State<IngredientsView> {
             key: _sectionKeys['soap:oils'],
             child: Column(
               children: [
-                ...formula.oils!.map((oil) {
+                ...formula.oils!.asMap().entries.map((entry) {
+                  final oil = entry.value;
+                  final index = entry.key;
+                  final checkKey = IngredientSectionHelper.getSoapOilKey(
+                    oil.id,
+                    oil.name,
+                    index,
+                  );
+                  final isChecked = _run.ingredientChecks[checkKey] ?? false;
                   return Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: UITokens.spacingL,
                       vertical: UITokens.spacingM,
                     ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            oil.name,
-                            style: Theme.of(context).textTheme.bodyLarge,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                    child: InkWell(
+                      onTap: () => widget.onIngredientCheckToggled?.call(checkKey),
+                      child: Row(
+                        children: [
+                          Checkbox(
+                            value: isChecked,
+                            onChanged: (_) =>
+                                widget.onIngredientCheckToggled?.call(checkKey),
                           ),
-                        ),
-                        if (oil.percent != null)
-                          SizedBox(
-                            width: 56,
+                          const SizedBox(width: 8),
+                          Expanded(
                             child: Text(
-                              '${oil.percent!.toStringAsFixed(1)}%',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                                  ),
+                              oil.name,
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                decoration: isChecked
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                                color: isChecked
+                                    ? Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withOpacity(0.6)
+                                    : null,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (oil.percent != null)
+                            SizedBox(
+                              width: 56,
+                              child: Text(
+                                '${oil.percent!.toStringAsFixed(1)}%',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
+                                textAlign: TextAlign.right,
+                              ),
+                            ),
+                          SizedBox(
+                            width: 72,
+                            child: Text(
+                              '${oil.grams.toStringAsFixed(2)} g',
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(fontWeight: FontWeight.w500),
                               textAlign: TextAlign.right,
                             ),
                           ),
-                        SizedBox(
-                          width: 72,
-                          child: Text(
-                            '${oil.grams.toStringAsFixed(2)} g',
-                            style: Theme.of(context).textTheme.bodyLarge
-                                ?.copyWith(fontWeight: FontWeight.w500),
-                            textAlign: TextAlign.right,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
-                }),
+                }).toList(),
                 const Divider(height: 1),
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -615,13 +649,23 @@ class IngredientsViewState extends State<IngredientsView> {
 class PhaseSection extends StatelessWidget {
   final FormulaPhase phase;
   final GlobalKey? sectionKey;
+  final LabRun run;
+  final Function(String)? onIngredientCheckToggled;
 
-  const PhaseSection({super.key, required this.phase, this.sectionKey});
+  const PhaseSection({
+    super.key,
+    required this.phase,
+    this.sectionKey,
+    required this.run,
+    this.onIngredientCheckToggled,
+  });
 
   @override
   Widget build(BuildContext context) {
     // Get phase letter (A, B, C, etc.) from order
     final phaseLetter = String.fromCharCode(65 + (phase.order - 1)); // A=65
+    // Use constructed phase ID format (pA, pB, etc.) to match section ID format
+    final phaseId = 'p$phaseLetter';
 
     return Card(
       key: sectionKey,
@@ -654,8 +698,23 @@ class PhaseSection extends StatelessWidget {
             ),
           ),
           const Divider(height: 1),
-          ...phase.items.map((item) {
-            return IngredientRow(item: item);
+          ...phase.items.asMap().entries.map((entry) {
+            final item = entry.value;
+            final index = entry.key;
+            final checkKey = IngredientSectionHelper.getPhaseItemKey(
+              phaseId,
+              item.id,
+              item.name,
+              index,
+            );
+            final isChecked = run.ingredientChecks[checkKey] ?? false;
+            return IngredientRow(
+              item: item,
+              isChecked: isChecked,
+              onTap: onIngredientCheckToggled != null
+                  ? () => onIngredientCheckToggled!(checkKey)
+                  : null,
+            );
           }),
         ],
       ),
@@ -665,59 +724,88 @@ class PhaseSection extends StatelessWidget {
 
 class IngredientRow extends StatelessWidget {
   final FormulaItem item;
+  final bool isChecked;
+  final VoidCallback? onTap;
 
-  const IngredientRow({super.key, required this.item});
+  const IngredientRow({
+    super.key,
+    required this.item,
+    this.isChecked = false,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: UITokens.spacingL, vertical: UITokens.spacingM),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  item.name,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (item.percent != null)
-                SizedBox(
-                  width: 56,
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: UITokens.spacingL,
+          vertical: UITokens.spacingM,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                if (onTap != null) ...[
+                  Checkbox(
+                    value: isChecked,
+                    onChanged: (_) => onTap?.call(),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
                   child: Text(
-                    '${item.percent!.toStringAsFixed(1)}%',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    item.name,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      decoration: isChecked
+                          ? TextDecoration.lineThrough
+                          : null,
+                      color: isChecked
+                          ? Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.6)
+                          : null,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (item.percent != null)
+                  SizedBox(
+                    width: 56,
+                    child: Text(
+                      '${item.percent!.toStringAsFixed(1)}%',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                SizedBox(
+                  width: 72,
+                  child: Text(
+                    '${item.grams.toStringAsFixed(2)} g',
+                    style: Theme.of(context).textTheme.bodyLarge
+                        ?.copyWith(fontWeight: FontWeight.w500),
                     textAlign: TextAlign.right,
                   ),
                 ),
-              SizedBox(
-                width: 72,
-                child: Text(
-                  '${item.grams.toStringAsFixed(2)} g',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
-                  textAlign: TextAlign.right,
+              ],
+            ),
+            if (item.notes != null && item.notes!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                item.notes!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
-          ),
-          if (item.notes != null && item.notes!.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              item.notes!,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:convert';
 import '../../data/lab_run_repository.dart';
 import '../../domain/lab_run.dart';
 import '../../utils/date_formatter.dart';
 import '../../app/log.dart';
+import '../../app/ui_tokens.dart';
 import 'run_detail_screen.dart';
 import '../../widgets/recipe_badge.dart';
 
@@ -103,18 +106,57 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              DateFormatter.formatDateTime(run.createdAt),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Created: ${DateFormatter.formatDateTime(run.createdAt)}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                if (run.finishedAt != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Finished: ${DateFormatter.formatDateTime(run.finishedAt!)}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          trailing: Text(
-            '${run.completedSteps}/${run.totalSteps}',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${run.completedSteps}/${run.totalSteps}',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              PopupMenuButton<String>(
+                onSelected: (value) async {
+                  if (value == 'export') {
+                    await _exportRun(run);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'export',
+                    child: Row(
+                      children: [
+                        Icon(Icons.file_download, size: 20),
+                        SizedBox(width: UITokens.spacingS),
+                        Text('Export JSON'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
           onTap: () async {
             final updatedRun = await Navigator.push<LabRun>(
@@ -211,6 +253,35 @@ class _HistoryScreenState extends State<HistoryScreen> {
           duration: const Duration(seconds: 4),
         ),
       );
+    }
+  }
+
+  Future<void> _exportRun(LabRun run) async {
+    try {
+      const encoder = JsonEncoder.withIndent('  ');
+      final formattedJson = encoder.convert(run.toJson());
+
+      await Clipboard.setData(ClipboardData(text: formattedJson));
+      Log.d('HistoryScreen', 'Exported run to clipboard: ${run.id}');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Copied'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      Log.d('HistoryScreen', 'Export failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to export: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 }

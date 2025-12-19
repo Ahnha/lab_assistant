@@ -67,12 +67,16 @@ class _NoteStepWidgetState extends State<NoteStepWidget> {
               widget.step.title,
               style: Theme.of(context).textTheme.titleLarge,
             ),
+            const SizedBox(height: 16),
             if (widget.step.ingredientSectionId != null &&
                 widget.onNavigateToIngredients != null) ...[
-              const SizedBox(height: 12),
-              _buildIngredientLink(context),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [_buildIngredientChip(context)],
+              ),
+              const SizedBox(height: 16),
             ],
-            const SizedBox(height: 16),
             TextField(
               controller: _controller,
               maxLines: null,
@@ -111,7 +115,7 @@ class _NoteStepWidgetState extends State<NoteStepWidget> {
     );
   }
 
-  Widget _buildIngredientLink(BuildContext context) {
+  Widget _buildIngredientChip(BuildContext context) {
     final label = widget.step.ingredientSectionLabel ?? 'Ingredients';
     return InkWell(
       onTap: widget.onNavigateToIngredients,
@@ -122,8 +126,9 @@ class _NoteStepWidgetState extends State<NoteStepWidget> {
           color: Theme.of(context).colorScheme.primaryContainer,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Wrap(
+          spacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
               'Ingredients → $label',
@@ -132,7 +137,6 @@ class _NoteStepWidgetState extends State<NoteStepWidget> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(width: 4),
             Icon(
               Icons.arrow_forward,
               size: 16,

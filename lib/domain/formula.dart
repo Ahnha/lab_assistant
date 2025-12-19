@@ -119,7 +119,6 @@ class Formula {
       }
     }
 
-    // Handle both int and double for backward compatibility
     final batchSizeData = json['batchSizeGrams'];
     final batchSizeGrams = (batchSizeData is num)
         ? batchSizeData.toDouble()
@@ -136,20 +135,7 @@ class Formula {
     );
   }
 
-  /// Creates a Formula from a legacy SoapFormula for backward compatibility
-  factory Formula.fromSoapFormula(SoapFormula soapFormula) {
-    return Formula(
-      batchSizeGrams: soapFormula.batchSizeGrams,
-      oilsTotalGrams: soapFormula.oilsTotalGrams,
-      oils: soapFormula.oils,
-      lye: soapFormula.lye,
-      water: soapFormula.water,
-      superfatPercent: soapFormula.superfatPercent,
-    );
-  }
-
-  /// Creates a copy of this Formula with updated batch size and recalculated grams
-  /// Note: This method is kept for backward compatibility but uses rounding.
+  /// Creates a copy of this Formula with updated batch size and recalculated grams.
   /// For precise scaling with 2 decimal places, use lab_run_scaler functions instead.
   Formula scaleToBatchSize(double newBatchSize) {
     if (isCreamStyle) {

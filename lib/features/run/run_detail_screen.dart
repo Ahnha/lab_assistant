@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:convert';
 import '../../domain/lab_run.dart';
 import '../../domain/procedure_step.dart';
 import '../../domain/step_kind.dart';
@@ -16,6 +18,7 @@ import 'widgets/checklist_step_widget.dart';
 import 'widgets/timer_step_widget.dart';
 import 'widgets/input_number_step_widget.dart';
 import 'widgets/note_step_widget.dart';
+import 'widgets/section_step_widget.dart';
 import 'widgets/ingredients_view.dart';
 
 class RunDetailScreen extends StatefulWidget {
@@ -42,6 +45,8 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
   int _selectedTab = 0;
   final GlobalKey<IngredientsViewState> _ingredientsViewKey = GlobalKey();
   final ScrollController _ingredientsScrollController = ScrollController();
+  final ScrollController _stepsScrollController = ScrollController();
+  final Map<String, GlobalKey> _stepKeys = {};
   bool _labModeEnabled = false;
 
   @override
@@ -50,7 +55,15 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
     _controller = RunController(widget.run);
     _controller.addListener(_onControllerChanged);
     _controller.onTimerFinished = _onTimerFinished;
+    _controller.onSectionCompleted = _onSectionCompleted;
     _loadLabModeSetting();
+    _initializeStepKeys();
+  }
+
+  void _initializeStepKeys() {
+    for (final step in widget.run.steps) {
+      _stepKeys[step.id] = GlobalKey();
+    }
   }
 
   void _onTimerFinished(String stepId, String stepTitle) {
@@ -78,15 +91,98 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
     _controller.removeListener(_onControllerChanged);
     _controller.dispose();
     _ingredientsScrollController.dispose();
+    _stepsScrollController.dispose();
     super.dispose();
   }
 
   void _onControllerChanged() {
+    // Note: Auto-navigation is now handled by _onSectionCompleted callback
+    // This method just updates the UI state
     setState(() {});
   }
 
-  void _navigateToIngredientSection(String? sectionId) {
+  bool _autoReturnEnabled =
+      true; // Default to true, will be loaded from settings
+  bool _userChoseToStay = false; // Track if user tapped "Stay"
+
+  Future<void> _onSectionCompleted(String sectionId, String stepId) async {
+    // Load auto-return setting
+    _autoReturnEnabled = await AppSettings.isAutoReturnEnabled();
+
+    if (!mounted) return;
+
+    if (_autoReturnEnabled) {
+      // Reset stay flag
+      _userChoseToStay = false;
+
+      // Show snackbar with "Back to steps" and "Stay" options
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
+      scaffoldMessenger.clearSnackBars(); // Clear any existing snackbars
+
+      final snackBar = SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 8),
+            Expanded(child: Text('Section complete! Return to steps?')),
+          ],
+        ),
+        duration: const Duration(milliseconds: 3000),
+        action: SnackBarAction(
+          label: 'Stay',
+          textColor: Colors.white,
+          onPressed: () {
+            // User chose to stay, do not navigate
+            _userChoseToStay = true;
+            scaffoldMessenger.hideCurrentSnackBar();
+          },
+        ),
+      );
+
+      scaffoldMessenger.showSnackBar(snackBar);
+
+      // Auto-navigate after delay if user doesn't tap "Stay"
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted && !_userChoseToStay) {
+          scaffoldMessenger.hideCurrentSnackBar();
+          _navigateBackToSteps(stepId);
+        }
+      });
+    } else {
+      // Auto-return disabled, just show completion message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Section complete ✅'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _navigateBackToSteps(String stepId) {
+    final nextStepId = _controller.getNextStepId(stepId);
+    setState(() {
+      _selectedTab = 0;
+    });
+    // Scroll to next step after a frame
+    if (nextStepId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToStep(nextStepId);
+      });
+    }
+  }
+
+  void _navigateToIngredientSection(String? sectionId, String stepId) {
     if (sectionId == null) return;
+
+    // Set navigation context in controller
+    _controller.openIngredientsForSection(sectionId, stepId);
 
     // Switch to Ingredients tab
     setState(() {
@@ -98,6 +194,18 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
       final ingredientsState = _ingredientsViewKey.currentState;
       ingredientsState?.scrollToSection(sectionId);
     });
+  }
+
+  void _scrollToStep(String stepId) {
+    final key = _stepKeys[stepId];
+    if (key?.currentContext != null) {
+      Scrollable.ensureVisible(
+        key!.currentContext!,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        alignment: 0.1, // Scroll to show step near top
+      );
+    }
   }
 
   Future<void> _saveRun({bool showMessage = false}) async {
@@ -142,6 +250,48 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _finishRun() async {
+    await _controller.finishRun();
+    if (!mounted) return;
+
+    if (widget.isEmbedded && widget.onRunUpdated != null) {
+      widget.onRunUpdated!(_controller.run);
+    } else {
+      // Navigate back to Inbox
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _exportRun() async {
+    try {
+      final run = _controller.run;
+      const encoder = JsonEncoder.withIndent('  ');
+      final formattedJson = encoder.convert(run.toJson());
+
+      await Clipboard.setData(ClipboardData(text: formattedJson));
+      Log.d('RunDetailScreen', 'Exported run to clipboard: ${run.id}');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Run JSON copied to clipboard'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      Log.d('RunDetailScreen', 'Export failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to export: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
   void _showDeleteRunDialog() {
@@ -208,6 +358,10 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
             onSelected: (value) {
               if (value == 'reset') {
                 _showResetProgressDialog();
+              } else if (value == 'finish') {
+                _finishRun();
+              } else if (value == 'export') {
+                _exportRun();
               } else if (value == 'delete') {
                 _showDeleteRunDialog();
               }
@@ -220,6 +374,27 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
                     Icon(Icons.refresh, size: 20),
                     SizedBox(width: UITokens.spacingS),
                     Text('Reset progress'),
+                  ],
+                ),
+              ),
+              if (!run.archived)
+                const PopupMenuItem(
+                  value: 'finish',
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle, size: 20),
+                      SizedBox(width: UITokens.spacingS),
+                      Text('Finish Run'),
+                    ],
+                  ),
+                ),
+              const PopupMenuItem(
+                value: 'export',
+                child: Row(
+                  children: [
+                    Icon(Icons.file_download, size: 20),
+                    SizedBox(width: UITokens.spacingS),
+                    Text('Export JSON'),
                   ],
                 ),
               ),
@@ -274,22 +449,42 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
             padding: EdgeInsets.all(
               _labModeEnabled ? UITokens.spacingXL : UITokens.spacingL,
             ),
-            child: SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(value: 0, label: Text('Steps')),
-                ButtonSegment(value: 1, label: Text('Ingredients')),
+            child: Column(
+              children: [
+                SegmentedButton<int>(
+                  segments: const [
+                    ButtonSegment(value: 0, label: Text('Steps')),
+                    ButtonSegment(value: 1, label: Text('Ingredients')),
+                  ],
+                  selected: {_selectedTab},
+                  onSelectionChanged: (Set<int> newSelection) {
+                    final newTab = newSelection.first;
+                    // Clear navigation context if user manually switches to ingredients
+                    if (newTab == 1 && _selectedTab == 0) {
+                      _controller.clearIngredientsContext();
+                    }
+                    setState(() {
+                      _selectedTab = newTab;
+                    });
+                  },
+                ),
+                if (run.completedSteps == run.totalSteps &&
+                    run.totalSteps > 0 &&
+                    !run.archived) ...[
+                  const SizedBox(height: 16),
+                  PrimaryButton(
+                    label: 'Finish Run',
+                    onPressed: _finishRun,
+                    isFullWidth: true,
+                  ),
+                ],
               ],
-              selected: {_selectedTab},
-              onSelectionChanged: (Set<int> newSelection) {
-                setState(() {
-                  _selectedTab = newSelection.first;
-                });
-              },
             ),
           ),
           Expanded(
             child: _selectedTab == 0
                 ? ListView.builder(
+                    controller: _stepsScrollController,
                     padding: EdgeInsets.all(_labModeEnabled ? 20 : 16),
                     itemCount: run.steps.length,
                     itemBuilder: (context, index) {
@@ -307,6 +502,9 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
                     run: run,
                     onRunUpdated: _controller.updateRun,
                     scrollController: _ingredientsScrollController,
+                    onIngredientCheckToggled: (key) {
+                      _controller.toggleIngredientCheck(key);
+                    },
                   ),
           ),
         ],
@@ -330,19 +528,26 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
   }
 
   Widget _buildStepWidget(ProcedureStep step, int index) {
+    final stepKey = _stepKeys[step.id] ??= GlobalKey();
+    Widget stepWidget;
+
     switch (step.kind) {
       case StepKind.instruction:
-        return InstructionStepWidget(
+        stepWidget = InstructionStepWidget(
           step: step,
           onStatusChanged: (status) {
             _controller.setStepStatus(step.id, status);
           },
           onNavigateToIngredients: step.ingredientSectionId != null
-              ? () => _navigateToIngredientSection(step.ingredientSectionId)
+              ? () => _navigateToIngredientSection(
+                  step.ingredientSectionId,
+                  step.id,
+                )
               : null,
         );
+        break;
       case StepKind.checklist:
-        return ChecklistStepWidget(
+        stepWidget = ChecklistStepWidget(
           step: step,
           onStepUpdated: (updated) {
             // Widget handles item toggling and status updates
@@ -364,23 +569,32 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
             _controller.updateStep(index, fullUpdated);
           },
           onNavigateToIngredients: step.ingredientSectionId != null
-              ? () => _navigateToIngredientSection(step.ingredientSectionId)
+              ? () => _navigateToIngredientSection(
+                  step.ingredientSectionId,
+                  step.id,
+                )
               : null,
         );
+        break;
       case StepKind.timer:
-        return TimerStepWidget(
+        stepWidget = TimerStepWidget(
           step: step,
           onStart: () => _controller.startTimer(step.id),
           onPause: () => _controller.pauseTimer(step.id),
           onReset: () => _controller.resetTimer(step.id),
           onMarkDone: () => _controller.markTimerDone(step.id),
           onSkip: () => _controller.skipTimer(step.id),
+          onToggleStatus: () => _controller.toggleTimerStatus(step.id),
           onNavigateToIngredients: step.ingredientSectionId != null
-              ? () => _navigateToIngredientSection(step.ingredientSectionId)
+              ? () => _navigateToIngredientSection(
+                  step.ingredientSectionId,
+                  step.id,
+                )
               : null,
         );
+        break;
       case StepKind.inputNumber:
-        return InputNumberStepWidget(
+        stepWidget = InputNumberStepWidget(
           step: step,
           onStepUpdated: (updated) {
             _controller.setInputNumber(step.id, updated.value);
@@ -390,11 +604,15 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
             }
           },
           onNavigateToIngredients: step.ingredientSectionId != null
-              ? () => _navigateToIngredientSection(step.ingredientSectionId)
+              ? () => _navigateToIngredientSection(
+                  step.ingredientSectionId,
+                  step.id,
+                )
               : null,
         );
+        break;
       case StepKind.note:
-        return NoteStepWidget(
+        stepWidget = NoteStepWidget(
           step: step,
           onStepUpdated: (updated) {
             final fullUpdated = ProcedureStep(
@@ -414,9 +632,18 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
             _controller.updateStep(index, fullUpdated);
           },
           onNavigateToIngredients: step.ingredientSectionId != null
-              ? () => _navigateToIngredientSection(step.ingredientSectionId)
+              ? () => _navigateToIngredientSection(
+                  step.ingredientSectionId,
+                  step.id,
+                )
               : null,
         );
+        break;
+      case StepKind.section:
+        stepWidget = SectionStepWidget(step: step);
+        break;
     }
+
+    return KeyedSubtree(key: stepKey, child: stepWidget);
   }
 }

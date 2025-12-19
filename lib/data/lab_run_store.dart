@@ -45,6 +45,10 @@ class LabRunStore {
       steps: run.steps,
       notes: run.notes,
       archived: true,
+      finishedAt: run.finishedAt ?? DateTime.now(),
+      formula: run.formula,
+      templateId: run.templateId,
+      ingredientChecks: run.ingredientChecks,
     );
     await saveRun(updatedRun);
   }

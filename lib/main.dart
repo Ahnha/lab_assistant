@@ -2,8 +2,15 @@ import 'package:flutter/material.dart';
 import 'app/app_theme.dart';
 import 'app/main_screen.dart';
 import 'data/app_settings.dart';
+import 'data/storage_init.dart';
 
-void main() {
+Future<void> main() async {
+  // Ensure Flutter bindings are initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize storage on startup (must complete before app starts)
+  await StorageInit.initialize();
+
   runApp(const MainApp());
 }
 

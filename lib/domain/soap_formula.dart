@@ -27,7 +27,6 @@ class SoapOil {
       percentValue = (percentData is num) ? percentData.toDouble() : null;
     }
 
-    // Handle both int and double for backward compatibility
     final gramsData = json['grams'];
     final gramsValue = (gramsData is num) ? gramsData.toDouble() : 0.0;
 
@@ -51,7 +50,6 @@ class SoapLye {
   }
 
   factory SoapLye.fromJson(Map<String, dynamic> json) {
-    // Handle both int and double for backward compatibility
     final gramsData = json['grams'];
     final gramsValue = (gramsData is num) ? gramsData.toDouble() : 0.0;
     return SoapLye(name: json['name'] as String, grams: gramsValue);
@@ -69,7 +67,6 @@ class SoapWater {
   }
 
   factory SoapWater.fromJson(Map<String, dynamic> json) {
-    // Handle both int and double for backward compatibility
     final gramsData = json['grams'];
     final gramsValue = (gramsData is num) ? gramsData.toDouble() : 0.0;
     return SoapWater(name: json['name'] as String, grams: gramsValue);
@@ -113,7 +110,6 @@ class SoapFormula {
           : null;
     }
 
-    // Handle both int and double for backward compatibility
     final batchSizeData = json['batchSizeGrams'];
     final batchSizeValue = (batchSizeData is num)
         ? batchSizeData.toDouble()

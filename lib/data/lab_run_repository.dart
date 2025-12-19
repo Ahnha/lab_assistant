@@ -37,6 +37,8 @@ class LabRunRepository {
 
   /// Archive a run (marks as archived without deleting).
   Future<void> archive(String id) async {
+    Log.d('Repository', 'Archiving run: $id');
     await _store.archiveRun(id);
+    Log.d('Repository', 'Run archived: $id');
   }
 }

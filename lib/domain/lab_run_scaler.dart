@@ -59,7 +59,10 @@ LabRun scaleSoapOils(LabRun run, double newOilsTotalGrams) {
     steps: run.steps,
     notes: run.notes,
     archived: run.archived,
+    finishedAt: run.finishedAt,
     formula: updatedFormula,
+    templateId: run.templateId,
+    ingredientChecks: run.ingredientChecks,
   );
 }
 
@@ -115,7 +118,10 @@ LabRun scalePhaseItems(LabRun run, double newBatchSizeGrams) {
     steps: run.steps,
     notes: run.notes,
     archived: run.archived,
+    finishedAt: run.finishedAt,
     formula: updatedFormula,
+    templateId: run.templateId,
+    ingredientChecks: run.ingredientChecks,
   );
 }
 

@@ -106,6 +106,25 @@ class LabRunParser {
         ? Formula.fromJson(json['formula'] as Map<String, dynamic>)
         : null;
 
+    // Parse finishedAt
+    DateTime? finishedAt;
+    if (json['finishedAt'] != null) {
+      try {
+        finishedAt = DateTime.parse(json['finishedAt'] as String);
+      } catch (e) {
+        finishedAt = null;
+      }
+    }
+
+    // Parse ingredientChecks
+    Map<String, bool> ingredientChecksMap = {};
+    if (json['ingredientChecks'] != null) {
+      final checksJson = json['ingredientChecks'] as Map<String, dynamic>;
+      ingredientChecksMap = checksJson.map(
+        (key, value) => MapEntry(key, value as bool),
+      );
+    }
+
     return LabRun(
       id: json['id'] as String? ?? '',
       createdAt: createdAt,
@@ -114,7 +133,10 @@ class LabRunParser {
       steps: steps,
       notes: json['notes'] as String?,
       archived: json['archived'] as bool? ?? false,
+      finishedAt: finishedAt,
       formula: formula,
+      templateId: json['templateId'] as String?,
+      ingredientChecks: ingredientChecksMap,
     );
   }
 }

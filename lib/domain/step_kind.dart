@@ -1,1 +1,1 @@
-enum StepKind { instruction, checklist, timer, inputNumber, note }
+enum StepKind { instruction, checklist, timer, inputNumber, note, section }

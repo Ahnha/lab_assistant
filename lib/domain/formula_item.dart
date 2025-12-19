@@ -24,20 +24,14 @@ class FormulaItem {
   }
 
   factory FormulaItem.fromJson(Map<String, dynamic> json) {
-    // Handle both number and string percent for backward compatibility
     double? percentValue;
     final percentData = json['percent'];
     if (percentData != null) {
-      if (percentData is double) {
-        percentValue = percentData;
-      } else if (percentData is int) {
+      if (percentData is num) {
         percentValue = percentData.toDouble();
-      } else if (percentData is String) {
-        percentValue = double.tryParse(percentData);
       }
     }
 
-    // Handle both int and double for backward compatibility
     final gramsData = json['grams'];
     final gramsValue = (gramsData is num) ? gramsData.toDouble() : 0.0;
 
