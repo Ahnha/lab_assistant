@@ -248,6 +248,15 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.4.1"
+  skin_studio_design_tokens:
+    dependency: "direct main"
+    description:
+      path: "packages/flutter"
+      ref: "v0.2.0"
+      resolved-ref: ba64b17110a39d6c188d1e53bcf27e5d2e416e20
+      url: "https://github.com/ahnha/skin-studio-design-system.git"
+    source: git
+    version: "0.1.0"
   sky_engine:
     dependency: transitive
     description: flutter

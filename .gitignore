@@ -1,129 +1,40 @@
-# Miscellaneous
-*.class
+# Logs
+logs
 *.log
-*.pyc
-*.swp
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
-Thumbs.db
-.atom/
-.build/
-.buildlog/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# Editor / local history
+.history/
 .history
-.svn/
-.swiftpm/
-migrate_working_dir/
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# VS Code
-.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# Flutter / Dart build artifacts
 .dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-.pub-cache/
-.pub/
 build/
-/build/
-/coverage/
-coverage/
-*.coverage
-*.lcov
+.pub/
+.pub-cache/
+.packages
 
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android/Gradle
-android/.gradle/
-android/local.properties
-android/app/debug
-android/app/profile
-android/app/release
-*.apk
-*.aab
-*.ap_
-*.dex
-
-# Keystores and secrets
-*.jks
-*.keystore
-key.properties
-
-# iOS/Xcode
-ios/Pods/
-ios/.symlinks/
-ios/Flutter/Flutter.framework
-ios/Flutter/App.framework
-ios/Flutter/Generated.xcconfig
-ios/Flutter/ephemeral/
-ios/Runner/xcuserdata/
-ios/Runner.xcworkspace/
-ios/*.xcuserstate
-*.ipa
-*.dSYM
-*.xcarchive
-
-# macOS
-macos/Flutter/ephemeral/
-macos/Runner.xcworkspace/
-macos/Runner/xcuserdata/
-macos/*.xcuserstate
-
-# Windows
-windows/flutter/ephemeral/
-
-# Web
-web/build/
-
-# Environment files
-.env
-.env.local
-.env.*.local
-*.env
-
-# Firebase
-firebase_options.dart
-google-services.json
-GoogleService-Info.plist
-
-# FVM (Flutter Version Management)
-.fvm/
-
-# Fastlane
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots/**/*.png
-fastlane/test_output
-
-# Additional temp/cache files
-*.tmp
-*.temp
-.cache/
-*.cache
-
-# Note: The following files should NOT be ignored:
-# - android/gradle/wrapper/gradle-wrapper.properties
-# - android/gradle/wrapper/gradle-wrapper.jar
-# - android/gradlew
-# - android/gradlew.bat
-# - android/build.gradle*
-# - android/settings.gradle*
-# - android/app/build.gradle*
-# - ios/Runner/Info.plist
-# - ios/Runner/*.entitlements
-# - ios/Podfile
-# - ios/Podfile.lock
-# - ios/Runner.xcodeproj/project.pbxproj
-# - pubspec.yaml
-# - pubspec.lock
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store

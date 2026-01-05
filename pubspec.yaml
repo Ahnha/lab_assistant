@@ -10,6 +10,11 @@ dependencies:
   flutter:
     sdk: flutter
   shared_preferences: ^2.2.2
+  skin_studio_design_tokens:
+    git:
+      url: https://github.com/ahnha/skin-studio-design-system.git
+      ref: v0.2.0
+      path: packages/flutter
 
 dev_dependencies:
   flutter_test:

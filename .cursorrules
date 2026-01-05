@@ -1,0 +1,36 @@
+PROJECT RULES — LAB ASSISTANT (repo-agnostic template)
+
+Repo discovery first
+
+- Before making significant changes, scan the repo structure and identify:
+  language(s), runtime entrypoints, build tools, and how the app is started.
+- Prefer modifying existing patterns over introducing new ones.
+
+Product intent (assumed)
+
+- Lab Assistant is an operational tool: speed, reliability, offline/low-friction UX, and data integrity matter most.
+- Prioritize workflows: create/run steps, track progress, capture notes/measurements, and sync/export if present.
+
+Engineering rules
+
+- Keep diffs minimal; avoid sweeping refactors.
+- Add tests for logic and regression; keep dev loop fast.
+- Robustness: handle failures gracefully (network/storage), never lose user data silently.
+- Provide clear user-facing errors and recovery paths (retry, save draft, etc.) where applicable.
+
+Data rules
+
+- If local-first/offline exists: ensure conflict handling is explicit and deterministic.
+- If there’s sync: document it and avoid breaking data compatibility.
+
+Knowledge bank requirement (must be enabled)
+
+- Ensure /docs/knowledge-bank exists and is updated after each task.
+- Maintain docs/knowledge-bank/CHANGELOG.md and “Last updated” in README.
+- The KB is the repo’s source of truth for:
+  architecture, data model, API/sync contracts, build/run steps, and debug entrypoints.
+
+Verification
+
+- Always include run/test commands relevant to the tech stack.
+- If commands can’t be executed, provide exact commands for the user to run and what success looks like.
