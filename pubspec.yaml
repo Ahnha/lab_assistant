@@ -13,7 +13,7 @@ dependencies:
   skin_studio_design_tokens:
     git:
       url: https://github.com/ahnha/skin-studio-design-system.git
-      ref: v0.2.0
+      ref: v0.2.1
       path: packages/flutter
 
 dev_dependencies:
