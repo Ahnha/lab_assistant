@@ -24,7 +24,7 @@ class _MainScreenState extends State<MainScreen> {
       return const InboxMasterDetailScreen();
     }
     // Use regular navigation for phones
-    return const InboxScreen();
+    return InboxScreen(settingsController: widget.settingsController);
   }
 
   @override
@@ -33,32 +33,42 @@ class _MainScreenState extends State<MainScreen> {
       body: _currentIndex == 0
           ? _buildInboxScreen(context)
           : _currentIndex == 1
-          ? const HistoryScreen()
+          ? HistoryScreen(settingsController: widget.settingsController)
           : SettingsScreen(settingsController: widget.settingsController),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.inbox_outlined),
-            selectedIcon: Icon(Icons.inbox),
-            label: 'Inbox',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).colorScheme.outline.withOpacity(0.12),
+              width: 0.5,
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.history_outlined),
-            selectedIcon: Icon(Icons.history),
-            label: 'History',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
+        ),
+        child: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.inbox_outlined, size: 24),
+              selectedIcon: Icon(Icons.inbox, size: 24),
+              label: 'Inbox',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.history_outlined, size: 24),
+              selectedIcon: Icon(Icons.history, size: 24),
+              label: 'History',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined, size: 24),
+              selectedIcon: Icon(Icons.settings, size: 24),
+              label: 'Settings',
+            ),
+          ],
+        ),
       ),
     );
   }

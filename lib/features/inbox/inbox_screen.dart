@@ -5,14 +5,20 @@ import '../../data/lab_run_repository.dart';
 import '../../domain/lab_run.dart';
 import '../../utils/date_formatter.dart';
 import '../../app/log.dart';
-import '../../app/ui_tokens.dart';
+import '../../app/app_settings_controller.dart';
+import '../../ui/layout.dart';
+import '../../ui/spacing.dart';
+import '../../ui/widgets/ss_empty_state.dart';
+import '../../ui/widgets/ss_card.dart';
 import '../../app/widgets/primary_button.dart';
 import '../../app/widgets/secondary_button.dart';
 import '../run/run_detail_screen.dart';
 import '../../widgets/recipe_badge.dart';
 
 class InboxScreen extends StatefulWidget {
-  const InboxScreen({super.key});
+  final AppSettingsController settingsController;
+
+  const InboxScreen({super.key, required this.settingsController});
 
   @override
   State<InboxScreen> createState() => _InboxScreenState();
@@ -22,7 +28,6 @@ class _InboxScreenState extends State<InboxScreen> {
   final LabRunRepository _repository = LabRunRepository();
   List<LabRun> _runs = [];
   bool _isLoading = true;
-  bool _labModeEnabled = false;
 
   @override
   void initState() {
@@ -43,102 +48,61 @@ class _InboxScreenState extends State<InboxScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final spacingScale = widget.settingsController.spacingScale;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Inbox'), centerTitle: true),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _runs.isEmpty
-          ? _buildEmptyState()
-          : RefreshIndicator(
-              onRefresh: _loadRuns,
-              child: ListView.builder(
-                padding: EdgeInsets.all(
-                  _labModeEnabled ? UITokens.spacingXL : UITokens.spacingL,
+          ? _buildEmptyState(spacingScale)
+          : ConstrainedPage(
+              spacingScale: spacingScale,
+              child: RefreshIndicator(
+                onRefresh: _loadRuns,
+                child: ListView.builder(
+                  padding: EdgeInsets.symmetric(
+                    vertical: LabSpacing.gapLg(spacingScale),
+                  ),
+                  itemCount: _runs.length,
+                  itemBuilder: (context, index) {
+                    return _buildRunTile(_runs[index], spacingScale);
+                  },
                 ),
-                itemCount: _runs.length,
-                itemBuilder: (context, index) {
-                  return _buildRunTile(_runs[index]);
-                },
               ),
             ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.inbox_outlined,
-              size: 64,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No active runs',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Import a run to get started',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
+  Widget _buildEmptyState(double spacingScale) {
+    return SsEmptyState(
+      icon: Icons.inbox_outlined,
+      title: 'No active runs',
+      subtitle: 'Import a run to get started',
+      ctaLabel: 'Go to Settings',
+      onCtaPressed: () {
+        // Note: In a real implementation, you might want to use a callback
+        // or navigator key to switch to the Settings tab
+        // For now, this is a placeholder
+      },
+      spacingScale: spacingScale,
     );
   }
 
-  Widget _buildRunTile(LabRun run) {
+  Widget _buildRunTile(LabRun run, double spacingScale) {
     return Dismissible(
       key: Key(run.id),
       direction: DismissDirection.endToStart,
-      background: _buildDeleteBackground(context),
+      background: _buildDeleteBackground(context, spacingScale),
       confirmDismiss: (direction) async {
         return await _showDeleteConfirmationDialog(context, run);
       },
       onDismissed: (direction) {
         _deleteRun(run);
       },
-      child: Card(
-        margin: EdgeInsets.only(
-          bottom: _labModeEnabled ? UITokens.spacingL : UITokens.spacingM,
-        ),
-        child: ListTile(
-          contentPadding: EdgeInsets.all(
-            _labModeEnabled ? UITokens.spacingXL : UITokens.spacingL,
-          ),
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  run.recipe.name,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-              RecipeBadge(kind: run.recipe.kind),
-            ],
-          ),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              DateFormatter.formatDateTime(run.createdAt),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          trailing: Text(
-            '${run.completedSteps}/${run.totalSteps}',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
+      child: SsCard(
+        spacingScale: spacingScale,
+        child: InkWell(
           onTap: () async {
             final updatedRun = await Navigator.push<LabRun>(
               context,
@@ -151,20 +115,63 @@ class _InboxScreenState extends State<InboxScreen> {
               _loadRuns();
             }
           },
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: LabSpacing.tileInsets(spacingScale),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              run.recipe.name,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ),
+                          RecipeBadge(kind: run.recipe.kind),
+                        ],
+                      ),
+                      SizedBox(height: LabSpacing.gapSm(spacingScale)),
+                      Text(
+                        DateFormatter.formatDateTime(run.createdAt),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: LabSpacing.gapLg(spacingScale)),
+                Text(
+                  '${run.completedSteps}/${run.totalSteps}',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildDeleteBackground(BuildContext context) {
+  Widget _buildDeleteBackground(BuildContext context, double spacingScale) {
     return Container(
-      margin: const EdgeInsets.only(bottom: UITokens.spacingM),
+      margin: EdgeInsets.only(bottom: LabSpacing.gapMd(spacingScale)),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.error,
-        borderRadius: UITokens.borderRadiusM,
+        borderRadius: BorderRadius.circular(20),
       ),
       alignment: Alignment.centerRight,
-      padding: const EdgeInsets.only(right: UITokens.spacingXL),
+      padding: EdgeInsets.only(right: LabSpacing.gapXl(spacingScale)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -173,7 +180,7 @@ class _InboxScreenState extends State<InboxScreen> {
             color: Theme.of(context).colorScheme.onError,
             size: 28,
           ),
-          const SizedBox(width: UITokens.spacingS),
+          SizedBox(width: LabSpacing.gapSm(spacingScale)),
           Text(
             'Delete',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(

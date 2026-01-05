@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../app/ui_tokens.dart';
+import '../../../ui/spacing.dart';
 
 /// Reusable toggle row for settings screens.
 /// Displays label and description on the left, switch on the right.
@@ -8,6 +8,7 @@ class SettingsToggleRow extends StatelessWidget {
   final String? description;
   final bool value;
   final ValueChanged<bool> onChanged;
+  final double? spacingScale;
 
   const SettingsToggleRow({
     super.key,
@@ -15,12 +16,14 @@ class SettingsToggleRow extends StatelessWidget {
     this.description,
     required this.value,
     required this.onChanged,
+    this.spacingScale,
   });
 
   @override
   Widget build(BuildContext context) {
+    final scale = spacingScale ?? 1.0;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: UITokens.spacingS),
+      padding: LabSpacing.tileInsets(scale),
       child: Row(
         children: [
           Expanded(
@@ -32,7 +35,7 @@ class SettingsToggleRow extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 if (description != null) ...[
-                  const SizedBox(height: UITokens.spacingXS),
+                  SizedBox(height: LabSpacing.gapXs(scale)),
                   Text(
                     description!,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -43,7 +46,7 @@ class SettingsToggleRow extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: UITokens.spacingL),
+          SizedBox(width: LabSpacing.gapLg(scale)),
           Switch(
             value: value,
             onChanged: onChanged,

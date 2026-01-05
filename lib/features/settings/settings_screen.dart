@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../data/lab_run_repository.dart';
 import '../../app/app_settings_controller.dart';
-import '../../app/ui_tokens.dart';
 import '../../app/log.dart';
-import 'components/settings_section.dart';
+import '../../ui/layout.dart';
+import '../../ui/spacing.dart';
+import '../../ui/widgets/ss_section.dart';
+import '../../ui/widgets/ss_card.dart';
 import 'components/settings_toggle_row.dart';
 import 'components/import_run_card.dart';
 import 'appearance_page.dart';
@@ -75,30 +77,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final spacingScale = widget.settingsController.spacingScale;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Settings'), centerTitle: true),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(UITokens.spacingL),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // App Version Section
-            SettingsSection(
-              title: 'App Version',
-              child: Text(
-                _appVersion,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            ),
-            const SizedBox(height: UITokens.spacingXXL),
+      body: ConstrainedPage(
+        spacingScale: spacingScale,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: LabSpacing.gapLg(spacingScale)),
 
-            // Appearance Section
-            SettingsSection(
-              title: 'Appearance',
-              child: Column(
+              // App Version Card
+              SsCard(
+                spacingScale: spacingScale,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'App Version',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                        SizedBox(height: LabSpacing.gapXs(spacingScale)),
+                        Text(
+                          _appVersion,
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Appearance Section
+              SsSection(
+                title: 'Appearance',
+                spacingScale: spacingScale,
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.palette_outlined),
+                    leading: Icon(
+                      Icons.palette_outlined,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                     title: const Text('Theme'),
                     subtitle: Text(
                       _getThemeDisplayName(
@@ -106,8 +132,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
-                    trailing: const Icon(Icons.chevron_right),
-                    contentPadding: EdgeInsets.zero,
+                    trailing: Icon(
+                      Icons.chevron_right,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    contentPadding: LabSpacing.tileInsets(spacingScale),
                     onTap: () {
                       Navigator.push(
                         context,
@@ -119,7 +148,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       );
                     },
                   ),
-                  const Divider(height: 1),
                   SettingsToggleRow(
                     label: 'Lab Mode',
                     description:
@@ -128,38 +156,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onChanged: (value) {
                       widget.settingsController.setLabMode(value);
                     },
+                    spacingScale: spacingScale,
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: UITokens.spacingXXL),
 
-            // Behavior Section
-            SettingsSection(
-              title: 'Behavior',
-              child: SettingsToggleRow(
-                label: 'Auto-return to Steps when section complete',
-                description:
-                    'Automatically navigate back to Steps tab when an ingredient section is completed',
-                value: widget.settingsController.settings.autoReturnToSteps,
-                onChanged: (value) {
-                  widget.settingsController.setAutoReturnToSteps(value);
-                },
+              // Behavior Section
+              SsSection(
+                title: 'Behavior',
+                spacingScale: spacingScale,
+                children: [
+                  SettingsToggleRow(
+                    label: 'Auto-return to Steps when section complete',
+                    description:
+                        'Automatically navigate back to Steps tab when an ingredient section is completed',
+                    value: widget.settingsController.settings.autoReturnToSteps,
+                    onChanged: (value) {
+                      widget.settingsController.setAutoReturnToSteps(value);
+                    },
+                    spacingScale: spacingScale,
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: UITokens.spacingXXL),
 
-            // Import / Export Section
-            SettingsSection(
-              title: 'Import / Export',
-              description: 'Paste JSON exported from this app to recreate a run.',
-              child: ImportRunCard(
-                controller: _jsonController,
-                onImport: _importRun,
-                errorMessages: _errorMessages.isNotEmpty ? _errorMessages : null,
+              // Import / Export Section
+              SsSection(
+                title: 'Import / Export',
+                description: 'Paste JSON exported from this app to recreate a run.',
+                spacingScale: spacingScale,
+                children: [
+                  Padding(
+                    padding: LabSpacing.cardInsets(spacingScale),
+                    child: ImportRunCard(
+                      controller: _jsonController,
+                      onImport: _importRun,
+                      errorMessages: _errorMessages.isNotEmpty ? _errorMessages : null,
+                      spacingScale: spacingScale,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+
+              SizedBox(height: LabSpacing.gapXxl(spacingScale)),
+            ],
+          ),
         ),
       ),
     );

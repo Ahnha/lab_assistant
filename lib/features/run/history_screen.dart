@@ -5,12 +5,18 @@ import '../../data/lab_run_repository.dart';
 import '../../domain/lab_run.dart';
 import '../../utils/date_formatter.dart';
 import '../../app/log.dart';
-import '../../app/ui_tokens.dart';
+import '../../app/app_settings_controller.dart';
+import '../../ui/layout.dart';
+import '../../ui/spacing.dart';
+import '../../ui/widgets/ss_empty_state.dart';
+import '../../ui/widgets/ss_card.dart';
 import 'run_detail_screen.dart';
 import '../../widgets/recipe_badge.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  final AppSettingsController settingsController;
+
+  const HistoryScreen({super.key, required this.settingsController});
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -40,124 +46,55 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final spacingScale = widget.settingsController.spacingScale;
+
     return Scaffold(
       appBar: AppBar(title: const Text('History'), centerTitle: true),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _runs.isEmpty
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.history_outlined,
-                      size: 64,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No archived runs',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                  ],
+          ? _buildEmptyState(spacingScale)
+          : ConstrainedPage(
+              spacingScale: spacingScale,
+              child: RefreshIndicator(
+                onRefresh: _loadRuns,
+                child: ListView.builder(
+                  padding: EdgeInsets.symmetric(
+                    vertical: LabSpacing.gapLg(spacingScale),
+                  ),
+                  itemCount: _runs.length,
+                  itemBuilder: (context, index) {
+                    return _buildRunTile(_runs[index], spacingScale);
+                  },
                 ),
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _loadRuns,
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _runs.length,
-                itemBuilder: (context, index) {
-                  return _buildRunTile(_runs[index]);
-                },
               ),
             ),
     );
   }
 
-  Widget _buildRunTile(LabRun run) {
+  Widget _buildEmptyState(double spacingScale) {
+    return SsEmptyState(
+      icon: Icons.history_outlined,
+      title: 'No archived runs',
+      subtitle: 'Completed runs will appear here',
+      spacingScale: spacingScale,
+    );
+  }
+
+  Widget _buildRunTile(LabRun run, double spacingScale) {
     return Dismissible(
       key: Key(run.id),
       direction: DismissDirection.endToStart,
-      background: _buildDeleteBackground(context),
+      background: _buildDeleteBackground(context, spacingScale),
       confirmDismiss: (direction) async {
         return await _showDeleteConfirmationDialog(context, run);
       },
       onDismissed: (direction) {
         _deleteRun(run);
       },
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 12),
-        child: ListTile(
-          contentPadding: const EdgeInsets.all(16),
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  run.recipe.name,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-              RecipeBadge(kind: run.recipe.kind),
-            ],
-          ),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Created: ${DateFormatter.formatDateTime(run.createdAt)}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                if (run.finishedAt != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Finished: ${DateFormatter.formatDateTime(run.finishedAt!)}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${run.completedSteps}/${run.totalSteps}',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              PopupMenuButton<String>(
-                onSelected: (value) async {
-                  if (value == 'export') {
-                    await _exportRun(run);
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'export',
-                    child: Row(
-                      children: [
-                        Icon(Icons.file_download, size: 20),
-                        SizedBox(width: UITokens.spacingS),
-                        Text('Export JSON'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+      child: SsCard(
+        spacingScale: spacingScale,
+        child: InkWell(
           onTap: () async {
             final updatedRun = await Navigator.push<LabRun>(
               context,
@@ -170,20 +107,99 @@ class _HistoryScreenState extends State<HistoryScreen> {
               _loadRuns();
             }
           },
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: LabSpacing.tileInsets(spacingScale),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        run.recipe.name,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ),
+                    RecipeBadge(kind: run.recipe.kind),
+                  ],
+                ),
+                SizedBox(height: LabSpacing.gapSm(spacingScale)),
+                Text(
+                  'Created: ${DateFormatter.formatDateTime(run.createdAt)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+                if (run.finishedAt != null) ...[
+                  SizedBox(height: LabSpacing.gapXs(spacingScale)),
+                  Text(
+                    'Finished: ${DateFormatter.formatDateTime(run.finishedAt!)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                  ),
+                ],
+                SizedBox(height: LabSpacing.gapSm(spacingScale)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${run.completedSteps}/${run.totalSteps}',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                    ),
+                    PopupMenuButton<String>(
+                      icon: Icon(
+                        Icons.more_vert,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      onSelected: (value) async {
+                        if (value == 'export') {
+                          await _exportRun(run);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'export',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.file_download,
+                                size: 20,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                              SizedBox(width: LabSpacing.gapSm(spacingScale)),
+                              Text('Export JSON'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildDeleteBackground(BuildContext context) {
+  Widget _buildDeleteBackground(BuildContext context, double spacingScale) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(bottom: LabSpacing.gapMd(spacingScale)),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.error,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
       ),
       alignment: Alignment.centerRight,
-      padding: const EdgeInsets.only(right: 20),
+      padding: EdgeInsets.only(right: LabSpacing.gapXl(spacingScale)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -192,7 +208,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             color: Theme.of(context).colorScheme.onError,
             size: 28,
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: LabSpacing.gapSm(spacingScale)),
           Text(
             'Delete',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
