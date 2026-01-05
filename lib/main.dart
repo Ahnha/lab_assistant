@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'app/app_theme.dart';
+import 'package:skin_studio_design_tokens/design_tokens.dart';
 import 'app/main_screen.dart';
-import 'data/app_settings.dart';
+import 'app/app_settings_controller.dart';
 import 'data/storage_init.dart';
 
 Future<void> main() async {
@@ -22,39 +22,56 @@ class MainApp extends StatefulWidget {
 }
 
 class _MainAppState extends State<MainApp> {
-  bool _labModeEnabled = false;
+  final AppSettingsController _settingsController = AppSettingsController();
 
   @override
   void initState() {
     super.initState();
-    _loadLabModeSetting();
+    _settingsController.load();
+    _settingsController.addListener(_onSettingsChanged);
   }
 
-  Future<void> _loadLabModeSetting() async {
-    final enabled = await AppSettings.isLabModeEnabled();
+  @override
+  void dispose() {
+    _settingsController.removeListener(_onSettingsChanged);
+    _settingsController.dispose();
+    super.dispose();
+  }
+
+  void _onSettingsChanged() {
     if (mounted) {
-      setState(() {
-        _labModeEnabled = enabled;
-      });
+      setState(() {});
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Apply textScaleFactor when Lab Mode is enabled
-    final textScaleFactor = _labModeEnabled ? 1.15 : 1.0;
+    if (_settingsController.isLoading) {
+      return MaterialApp(
+        title: 'Lab Assistant',
+        home: Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final settings = _settingsController.settings;
+    final theme = buildSkinStudioTheme(
+      themeKey: settings.themeKey,
+      textScale: settings.textScale,
+      spacingScale: settings.spacingScale,
+    );
+
     return MaterialApp(
       title: 'Lab Assistant',
-      theme: AppTheme.lightTheme,
-      builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaleFactor: textScaleFactor),
-          child: child!,
-        );
-      },
-      home: MainScreen(onSettingsChanged: _loadLabModeSetting),
+      theme: theme,
+      home: MainScreen(
+        settingsController: _settingsController,
+      ),
     );
   }
 }

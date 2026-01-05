@@ -3,11 +3,12 @@ import '../features/inbox/inbox_screen.dart';
 import '../features/inbox/inbox_master_detail_screen.dart';
 import '../features/run/history_screen.dart';
 import '../features/settings/settings_screen.dart';
+import 'app_settings_controller.dart';
 
 class MainScreen extends StatefulWidget {
-  final VoidCallback? onSettingsChanged;
+  final AppSettingsController settingsController;
 
-  const MainScreen({super.key, this.onSettingsChanged});
+  const MainScreen({super.key, required this.settingsController});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -33,7 +34,7 @@ class _MainScreenState extends State<MainScreen> {
           ? _buildInboxScreen(context)
           : _currentIndex == 1
           ? const HistoryScreen()
-          : SettingsScreen(onSettingsChanged: widget.onSettingsChanged),
+          : SettingsScreen(settingsController: widget.settingsController),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {

@@ -1,0 +1,98 @@
+{
+  "id": "sample-cream-test",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "recipe": {
+    "id": "recipe-cream-sample",
+    "kind": "cream",
+    "name": "Basic Emulsifying Cream",
+    "defaultBatchSizeGrams": 500
+  },
+  "batchCode": "CREAM-SAMPLE",
+  "formula": {
+    "batchSizeGrams": 500,
+    "phases": [
+      {
+        "id": "phase-a",
+        "name": "Water phase",
+        "order": 1,
+        "totalGrams": 300,
+        "items": [
+          {"id": "item-1", "name": "Distilled Water", "grams": 250, "percent": 50.0},
+          {"id": "item-2", "name": "Glycerin", "grams": 30, "percent": 6.0, "notes": "Humectant"},
+          {"id": "item-3", "name": "Aloe Vera Gel", "grams": 20, "percent": 4.0, "notes": "Optional"}
+        ]
+      },
+      {
+        "id": "phase-b",
+        "name": "Oil phase",
+        "order": 2,
+        "totalGrams": 180,
+        "items": [
+          {"id": "item-4", "name": "Emulsifying Wax", "grams": 50, "percent": 10.0, "notes": "Primary emulsifier"},
+          {"id": "item-5", "name": "Shea Butter", "grams": 60, "percent": 12.0},
+          {"id": "item-6", "name": "Jojoba Oil", "grams": 40, "percent": 8.0},
+          {"id": "item-7", "name": "Coconut Oil", "grams": 30, "percent": 6.0}
+        ]
+      },
+      {
+        "id": "phase-c",
+        "name": "Cooldown",
+        "order": 3,
+        "totalGrams": 20,
+        "items": [
+          {"id": "item-8", "name": "Preservative", "grams": 10, "percent": 2.0, "notes": "Add below 40°C"},
+          {"id": "item-9", "name": "Fragrance Oil", "grams": 10, "percent": 2.0, "notes": "Optional"}
+        ]
+      }
+    ]
+  },
+  "steps": [
+    {
+      "id": "step-1",
+      "kind": "checklist",
+      "title": "Prepare Equipment",
+      "description": "Gather all equipment and ingredients",
+      "order": 1,
+      "status": "todo",
+      "items": [
+        {"id": "item-1", "label": "Double boiler", "done": false},
+        {"id": "item-2", "label": "Digital scale", "done": false},
+        {"id": "item-3", "label": "Stick blender", "done": false}
+      ]
+    },
+    {
+      "id": "step-2",
+      "kind": "instruction",
+      "title": "Weigh Phase A",
+      "description": "Weigh all Phase A (water phase) ingredients into a heat-safe container",
+      "order": 2,
+      "status": "todo"
+    },
+    {
+      "id": "step-3",
+      "kind": "instruction",
+      "title": "Heat Phase B",
+      "description": "Heat Phase B (oil phase) ingredients in double boiler until emulsifying wax is melted (70-75°C)",
+      "order": 3,
+      "status": "todo"
+    },
+    {
+      "id": "step-4",
+      "kind": "instruction",
+      "title": "Emulsify",
+      "description": "Heat Phase A to 70-75°C. Slowly pour Phase A into Phase B while blending. Continue blending until smooth and creamy",
+      "order": 4,
+      "status": "todo"
+    },
+    {
+      "id": "step-5",
+      "kind": "instruction",
+      "title": "Cooldown Additions",
+      "description": "Allow to cool to below 40°C, then add Phase C (cooldown) ingredients. Mix gently",
+      "order": 5,
+      "status": "todo"
+    }
+  ],
+  "notes": null,
+  "archived": false
+}

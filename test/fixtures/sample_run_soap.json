@@ -1,0 +1,47 @@
+{
+  "id": "sample-soap-test",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "recipe": {
+    "id": "recipe-soap-sample",
+    "kind": "soap",
+    "name": "Basic Cold Process Soap",
+    "defaultBatchSizeGrams": 1000
+  },
+  "batchCode": "SOAP-SAMPLE",
+  "formula": {
+    "batchSizeGrams": 1000,
+    "oilsTotalGrams": 700,
+    "oils": [
+      {"id": "oil-1", "name": "Olive Oil", "grams": 350, "percent": 50.0},
+      {"id": "oil-2", "name": "Coconut Oil", "grams": 210, "percent": 30.0},
+      {"id": "oil-3", "name": "Palm Oil", "grams": 140, "percent": 20.0}
+    ],
+    "lye": {"name": "Sodium Hydroxide", "grams": 100},
+    "water": {"name": "Distilled Water", "grams": 200},
+    "superfatPercent": 5.0
+  },
+  "steps": [
+    {
+      "id": "step-1",
+      "kind": "checklist",
+      "title": "Sanitize Equipment",
+      "description": "Clean and sanitize all equipment before starting",
+      "order": 1,
+      "status": "todo",
+      "items": [
+        {"id": "item-1", "label": "Stainless steel pot", "done": false},
+        {"id": "item-2", "label": "Stick blender", "done": false}
+      ]
+    },
+    {
+      "id": "step-2",
+      "kind": "instruction",
+      "title": "Prepare Lye Solution",
+      "description": "Carefully mix lye with water. Always add lye to water, never reverse.",
+      "order": 2,
+      "status": "todo"
+    }
+  ],
+  "notes": null,
+  "archived": false
+}
