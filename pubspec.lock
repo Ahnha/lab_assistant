@@ -252,8 +252,8 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/flutter"
-      ref: "v0.2.1"
-      resolved-ref: d516e6eb46cbe640ac60bb84c49c8f174b36f5f7
+      ref: "v0.2.2"
+      resolved-ref: "121b50da3211a2b39beccf7964216eabc3a39996"
       url: "https://github.com/ahnha/skin-studio-design-system.git"
     source: git
     version: "0.2.1"
