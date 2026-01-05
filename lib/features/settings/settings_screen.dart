@@ -4,6 +4,7 @@ import '../../app/app_settings_controller.dart';
 import '../../app/log.dart';
 import '../../ui/layout.dart';
 import '../../ui/spacing.dart';
+import '../../ui/components/ss_page_header.dart';
 import '../../ui/widgets/ss_section.dart';
 import '../../ui/widgets/ss_card.dart';
 import 'components/settings_toggle_row.dart';
@@ -80,13 +81,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final spacingScale = widget.settingsController.spacingScale;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings'), centerTitle: true),
-      body: ConstrainedPage(
-        spacingScale: spacingScale,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      body: Column(
+        children: [
+          SsPageHeader(
+            title: 'Settings',
+            spacingScale: spacingScale,
+            maxWidth: 800,
+          ),
+          Expanded(
+            child: ConstrainedPage(
+              spacingScale: spacingScale,
+              maxWidth: 800,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
               SizedBox(height: LabSpacing.gapLg(spacingScale)),
 
               // App Version Card
@@ -198,9 +207,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
 
               SizedBox(height: LabSpacing.gapXxl(spacingScale)),
-            ],
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

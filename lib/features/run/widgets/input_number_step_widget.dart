@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../domain/procedure_step.dart';
 import '../../../domain/step_status.dart';
 import '../../../utils/decimal_input_formatter.dart';
+import '../../../ui/widgets/ss_card.dart';
+import '../../../ui/spacing.dart';
 
 class InputNumberStepWidget extends StatefulWidget {
   final ProcedureStep step;
@@ -103,10 +105,9 @@ class _InputNumberStepWidgetState extends State<InputNumberStepWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: widget.step.status == StepStatus.done ? 1 : 2,
+    return SsCard(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: LabSpacing.cardInsets(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

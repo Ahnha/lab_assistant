@@ -8,15 +8,20 @@ import '../../app/log.dart';
 import '../../app/app_settings_controller.dart';
 import '../../ui/layout.dart';
 import '../../ui/spacing.dart';
-import '../../ui/widgets/ss_empty_state.dart';
+import '../../ui/components/ss_page_header.dart';
 import '../../ui/widgets/ss_card.dart';
 import 'run_detail_screen.dart';
 import '../../widgets/recipe_badge.dart';
 
 class HistoryScreen extends StatefulWidget {
   final AppSettingsController settingsController;
+  final void Function(int index)? onNavigateToTab;
 
-  const HistoryScreen({super.key, required this.settingsController});
+  const HistoryScreen({
+    super.key,
+    required this.settingsController,
+    this.onNavigateToTab,
+  });
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -49,35 +54,93 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final spacingScale = widget.settingsController.spacingScale;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('History'), centerTitle: true),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _runs.isEmpty
-          ? _buildEmptyState(spacingScale)
-          : ConstrainedPage(
-              spacingScale: spacingScale,
-              child: RefreshIndicator(
-                onRefresh: _loadRuns,
-                child: ListView.builder(
-                  padding: EdgeInsets.symmetric(
-                    vertical: LabSpacing.gapLg(spacingScale),
-                  ),
-                  itemCount: _runs.length,
-                  itemBuilder: (context, index) {
-                    return _buildRunTile(_runs[index], spacingScale);
-                  },
-                ),
-              ),
-            ),
+      body: Column(
+        children: [
+          SsPageHeader(
+            title: 'History',
+            spacingScale: spacingScale,
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _runs.isEmpty
+                    ? _buildEmptyState(spacingScale)
+                    : ConstrainedPage(
+                        spacingScale: spacingScale,
+                        child: RefreshIndicator(
+                          onRefresh: _loadRuns,
+                          child: ListView.builder(
+                            padding: EdgeInsets.symmetric(
+                              vertical: LabSpacing.gapLg(spacingScale),
+                            ),
+                            itemCount: _runs.length,
+                            itemBuilder: (context, index) {
+                              return _buildRunTile(_runs[index], spacingScale);
+                            },
+                          ),
+                        ),
+                      ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildEmptyState(double spacingScale) {
-    return SsEmptyState(
-      icon: Icons.history_outlined,
-      title: 'No archived runs',
-      subtitle: 'Completed runs will appear here',
-      spacingScale: spacingScale,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Padding(
+          padding: LabSpacing.pageInsets(spacingScale),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.history_outlined,
+                size: 64 * spacingScale,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurfaceVariant
+                    .withOpacity(0.6),
+              ),
+              SizedBox(height: LabSpacing.gapXxl(spacingScale)),
+              Text(
+                'No archived runs',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: LabSpacing.gapSm(spacingScale)),
+              Text(
+                'Completed runs will appear here',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: LabSpacing.gapXxl(spacingScale)),
+              FilledButton.icon(
+                onPressed: () => widget.onNavigateToTab?.call(0),
+                icon: const Icon(Icons.inbox, size: 20),
+                label: const Text('Go to Inbox'),
+              ),
+              SizedBox(height: LabSpacing.gapSm(spacingScale)),
+              Text(
+                'Finish a run to archive it.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant
+                          .withOpacity(0.7),
+                    ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

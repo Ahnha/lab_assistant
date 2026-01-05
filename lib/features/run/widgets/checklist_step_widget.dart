@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../domain/procedure_step.dart';
 import '../../../domain/step_status.dart';
 import '../../../domain/checklist_item.dart';
+import '../../../ui/widgets/ss_card.dart';
+import '../../../ui/spacing.dart';
 
 class ChecklistStepWidget extends StatelessWidget {
   final ProcedureStep step;
@@ -71,10 +73,9 @@ class ChecklistStepWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: step.status == StepStatus.done ? 1 : 2,
+    return SsCard(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: LabSpacing.cardInsets(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

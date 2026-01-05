@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../../domain/lab_run.dart';
 import '../../domain/procedure_step.dart';
 import '../../domain/step_kind.dart';
+import '../../domain/step_status.dart';
 import '../../domain/recipe_kind.dart';
 import '../../data/lab_run_repository.dart';
 import '../../data/app_settings.dart';
@@ -20,12 +21,15 @@ import 'widgets/input_number_step_widget.dart';
 import 'widgets/note_step_widget.dart';
 import 'widgets/section_step_widget.dart';
 import 'widgets/ingredients_view.dart';
+import 'components/step_list_view.dart';
 
 class RunDetailScreen extends StatefulWidget {
   final LabRun run;
   final ValueChanged<LabRun>? onRunUpdated;
   final VoidCallback? onRunDeleted;
   final bool isEmbedded;
+  final bool hideAppBar;
+  final String? initialStepId;
 
   const RunDetailScreen({
     super.key,
@@ -33,6 +37,8 @@ class RunDetailScreen extends StatefulWidget {
     this.onRunUpdated,
     this.onRunDeleted,
     this.isEmbedded = false,
+    this.hideAppBar = false,
+    this.initialStepId,
   });
 
   @override
@@ -58,6 +64,12 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
     _controller.onSectionCompleted = _onSectionCompleted;
     _loadLabModeSetting();
     _initializeStepKeys();
+    // Scroll to initial step if provided
+    if (widget.initialStepId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToStep(widget.initialStepId!);
+      });
+    }
   }
 
   void _initializeStepKeys() {
@@ -194,6 +206,36 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
       final ingredientsState = _ingredientsViewKey.currentState;
       ingredientsState?.scrollToSection(sectionId);
     });
+  }
+
+  String? _getCurrentStepId() {
+    final steps = _controller.run.steps;
+    if (steps.isEmpty) return null;
+    
+    // Find first step with status "doing"
+    try {
+      final doingStep = steps.firstWhere(
+        (step) => step.status == StepStatus.doing && step.kind != StepKind.section,
+      );
+      return doingStep.id;
+    } catch (e) {
+      // Find first todo step
+      try {
+        final todoStep = steps.firstWhere(
+          (step) => step.status == StepStatus.todo && step.kind != StepKind.section,
+        );
+        return todoStep.id;
+      } catch (e) {
+        // Return first non-section step, or first step if all are sections
+        try {
+          return steps.firstWhere(
+            (step) => step.kind != StepKind.section,
+          ).id;
+        } catch (e) {
+          return steps.first.id;
+        }
+      }
+    }
   }
 
   void _scrollToStep(String stepId) {
@@ -335,10 +377,12 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
   Widget build(BuildContext context) {
     final run = _controller.run;
     Widget scaffold = Scaffold(
-      appBar: AppBar(
-        title: Text(run.recipe.name),
-        centerTitle: true,
-        actions: [
+      appBar: widget.hideAppBar
+          ? null
+          : AppBar(
+              title: Text(run.recipe.name),
+              centerTitle: true,
+              actions: [
           if (_controller.isSaving)
             const Padding(
               padding: EdgeInsets.all(16.0),
@@ -414,37 +458,39 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
       ),
       body: Column(
         children: [
-          Container(
-            padding: EdgeInsets.all(
-              _labModeEnabled ? UITokens.spacingXL : UITokens.spacingL,
-            ),
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      run.recipe.kind.displayName,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      DateFormatter.formatDateTime(run.createdAt),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-                Text(
-                  '${run.completedSteps}/${run.totalSteps}',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+          // Hide existing header when using custom workspace header
+          if (!widget.hideAppBar)
+            Container(
+              padding: EdgeInsets.all(
+                _labModeEnabled ? UITokens.spacingXL : UITokens.spacingL,
+              ),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        run.recipe.kind.displayName,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormatter.formatDateTime(run.createdAt),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  Text(
+                    '${run.completedSteps}/${run.totalSteps}',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
           Padding(
             padding: EdgeInsets.all(
               _labModeEnabled ? UITokens.spacingXL : UITokens.spacingL,
@@ -483,19 +529,31 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
           ),
           Expanded(
             child: _selectedTab == 0
-                ? ListView.builder(
+                ? ListView(
                     controller: _stepsScrollController,
                     padding: EdgeInsets.all(_labModeEnabled ? 20 : 16),
-                    itemCount: run.steps.length,
-                    itemBuilder: (context, index) {
-                      final step = run.steps[index];
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          bottom: _labModeEnabled ? 20 : 16,
-                        ),
-                        child: _buildStepWidget(step, index),
-                      );
-                    },
+                    children: [
+                      // Step list overview
+                      StepListView(
+                        steps: run.steps,
+                        currentStepId: _getCurrentStepId(),
+                        onStepTap: (step) {
+                          _scrollToStep(step.id);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      // Detailed step widgets
+                      ...run.steps.asMap().entries.map((entry) {
+                        final step = entry.value;
+                        final index = entry.key;
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            bottom: _labModeEnabled ? 20 : 16,
+                          ),
+                          child: _buildStepWidget(step, index),
+                        );
+                      }),
+                    ],
                   )
                 : IngredientsView(
                     key: _ingredientsViewKey,

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../features/inbox/inbox_screen.dart';
-import '../features/inbox/inbox_master_detail_screen.dart';
 import '../features/run/history_screen.dart';
 import '../features/settings/settings_screen.dart';
 import 'app_settings_controller.dart';
@@ -17,14 +16,18 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
+  void _goToTab(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
   Widget _buildInboxScreen(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    // Use master/detail layout for tablets (width >= 900dp)
-    if (screenWidth >= 900) {
-      return const InboxMasterDetailScreen();
-    }
-    // Use regular navigation for phones
-    return InboxScreen(settingsController: widget.settingsController);
+    // Use the responsive InboxScreen which handles both mobile and desktop
+    return InboxScreen(
+      settingsController: widget.settingsController,
+      onNavigateToTab: _goToTab,
+    );
   }
 
   @override
@@ -33,8 +36,11 @@ class _MainScreenState extends State<MainScreen> {
       body: _currentIndex == 0
           ? _buildInboxScreen(context)
           : _currentIndex == 1
-          ? HistoryScreen(settingsController: widget.settingsController)
-          : SettingsScreen(settingsController: widget.settingsController),
+              ? HistoryScreen(
+                  settingsController: widget.settingsController,
+                  onNavigateToTab: _goToTab,
+                )
+              : SettingsScreen(settingsController: widget.settingsController),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(

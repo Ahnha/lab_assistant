@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../domain/procedure_step.dart';
 import '../../../domain/step_status.dart';
+import '../../../ui/widgets/ss_card.dart';
+import '../../../ui/spacing.dart';
 
 class InstructionStepWidget extends StatelessWidget {
   final ProcedureStep step;
@@ -16,10 +18,9 @@ class InstructionStepWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: step.status == StepStatus.done ? 1 : 2,
+    return SsCard(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: LabSpacing.cardInsets(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -122,7 +123,7 @@ class InstructionStepWidget extends StatelessWidget {
           FilledButton.icon(
             onPressed: () => onStatusChanged(StepStatus.done),
             icon: const Icon(Icons.check),
-            label: const Text('Complete'),
+            label: const Text('Mark Done'),
           ),
         if (step.status != StepStatus.skipped)
           OutlinedButton.icon(

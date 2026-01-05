@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../domain/procedure_step.dart';
 import '../../../domain/step_status.dart';
+import '../../../ui/widgets/ss_card.dart';
+import '../../../ui/spacing.dart';
 
 class TimerStepWidget extends StatelessWidget {
   final ProcedureStep step;
@@ -41,10 +43,9 @@ class TimerStepWidget extends StatelessWidget {
     final isFinished = step.timerState == TimerState.finished;
     final canMarkDone = isFinished || step.status == StepStatus.done;
 
-    return Card(
-      elevation: step.status == StepStatus.done ? 1 : 2,
+    return SsCard(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: LabSpacing.cardInsets(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

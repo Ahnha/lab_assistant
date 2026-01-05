@@ -1,24 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'dart:convert';
 import '../../data/lab_run_repository.dart';
 import '../../domain/lab_run.dart';
-import '../../utils/date_formatter.dart';
-import '../../app/log.dart';
+import '../../domain/recipe_kind.dart';
 import '../../app/app_settings_controller.dart';
-import '../../ui/layout.dart';
 import '../../ui/spacing.dart';
-import '../../ui/widgets/ss_empty_state.dart';
-import '../../ui/widgets/ss_card.dart';
+import '../../ui/components/ss_page_header.dart';
 import '../../app/widgets/primary_button.dart';
 import '../../app/widgets/secondary_button.dart';
+import '../../utils/date_formatter.dart';
+import 'run_workspace.dart';
+import 'run_list_panel.dart';
+import 'run_empty_state.dart';
 import '../run/run_detail_screen.dart';
-import '../../widgets/recipe_badge.dart';
 
+/// Responsive Inbox screen with 2-pane layout for desktop and single column for mobile.
 class InboxScreen extends StatefulWidget {
   final AppSettingsController settingsController;
+  final void Function(int index)? onNavigateToTab;
 
-  const InboxScreen({super.key, required this.settingsController});
+  const InboxScreen({
+    super.key,
+    required this.settingsController,
+    this.onNavigateToTab,
+  });
 
   @override
   State<InboxScreen> createState() => _InboxScreenState();
@@ -28,6 +32,10 @@ class _InboxScreenState extends State<InboxScreen> {
   final LabRunRepository _repository = LabRunRepository();
   List<LabRun> _runs = [];
   bool _isLoading = true;
+  LabRun? _selectedRun;
+
+  // Breakpoint for responsive layout
+  static const double _breakpoint = 840.0;
 
   @override
   void initState() {
@@ -43,154 +51,30 @@ class _InboxScreenState extends State<InboxScreen> {
     setState(() {
       _runs = activeRuns;
       _isLoading = false;
+      // Auto-select first run on desktop if none selected
+      if (activeRuns.isNotEmpty && _selectedRun == null) {
+        _selectedRun = activeRuns.first;
+      }
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final spacingScale = widget.settingsController.spacingScale;
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Inbox'), centerTitle: true),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _runs.isEmpty
-          ? _buildEmptyState(spacingScale)
-          : ConstrainedPage(
-              spacingScale: spacingScale,
-              child: RefreshIndicator(
-                onRefresh: _loadRuns,
-                child: ListView.builder(
-                  padding: EdgeInsets.symmetric(
-                    vertical: LabSpacing.gapLg(spacingScale),
-                  ),
-                  itemCount: _runs.length,
-                  itemBuilder: (context, index) {
-                    return _buildRunTile(_runs[index], spacingScale);
-                  },
-                ),
-              ),
-            ),
-    );
+  void _selectRun(LabRun run) {
+    setState(() {
+      _selectedRun = run;
+    });
   }
 
-  Widget _buildEmptyState(double spacingScale) {
-    return SsEmptyState(
-      icon: Icons.inbox_outlined,
-      title: 'No active runs',
-      subtitle: 'Import a run to get started',
-      ctaLabel: 'Go to Settings',
-      onCtaPressed: () {
-        // Note: In a real implementation, you might want to use a callback
-        // or navigator key to switch to the Settings tab
-        // For now, this is a placeholder
-      },
-      spacingScale: spacingScale,
-    );
-  }
-
-  Widget _buildRunTile(LabRun run, double spacingScale) {
-    return Dismissible(
-      key: Key(run.id),
-      direction: DismissDirection.endToStart,
-      background: _buildDeleteBackground(context, spacingScale),
-      confirmDismiss: (direction) async {
-        return await _showDeleteConfirmationDialog(context, run);
-      },
-      onDismissed: (direction) {
-        _deleteRun(run);
-      },
-      child: SsCard(
-        spacingScale: spacingScale,
-        child: InkWell(
-          onTap: () async {
-            final updatedRun = await Navigator.push<LabRun>(
-              context,
-              MaterialPageRoute(
-                builder: (context) => RunDetailScreen(run: run),
-              ),
-            );
-            if (updatedRun != null) {
-              await _repository.save(updatedRun);
-              _loadRuns();
-            }
-          },
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: LabSpacing.tileInsets(spacingScale),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              run.recipe.name,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
-                          ),
-                          RecipeBadge(kind: run.recipe.kind),
-                        ],
-                      ),
-                      SizedBox(height: LabSpacing.gapSm(spacingScale)),
-                      Text(
-                        DateFormatter.formatDateTime(run.createdAt),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(width: LabSpacing.gapLg(spacingScale)),
-                Text(
-                  '${run.completedSteps}/${run.totalSteps}',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ),
+  Future<void> _navigateToRunDetails(LabRun run) async {
+    final updatedRun = await Navigator.push<LabRun>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RunDetailScreen(run: run),
       ),
     );
-  }
-
-  Widget _buildDeleteBackground(BuildContext context, double spacingScale) {
-    return Container(
-      margin: EdgeInsets.only(bottom: LabSpacing.gapMd(spacingScale)),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.error,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      alignment: Alignment.centerRight,
-      padding: EdgeInsets.only(right: LabSpacing.gapXl(spacingScale)),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Icon(
-            Icons.delete_outline,
-            color: Theme.of(context).colorScheme.onError,
-            size: 28,
-          ),
-          SizedBox(width: LabSpacing.gapSm(spacingScale)),
-          Text(
-            'Delete',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onError,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
+    if (updatedRun != null) {
+      await _repository.save(updatedRun);
+      _loadRuns();
+    }
   }
 
   Future<bool?> _showDeleteConfirmationDialog(
@@ -220,10 +104,12 @@ class _InboxScreenState extends State<InboxScreen> {
 
   void _deleteRun(LabRun run) async {
     final deletedRun = run;
-    Log.d('InboxScreen', 'Deleting run: ${run.id}');
     await _repository.delete(run.id);
     setState(() {
       _runs.removeWhere((r) => r.id == run.id);
+      if (_selectedRun?.id == run.id) {
+        _selectedRun = _runs.isNotEmpty ? _runs.first : null;
+      }
     });
 
     if (mounted) {
@@ -243,60 +129,221 @@ class _InboxScreenState extends State<InboxScreen> {
     }
   }
 
-  Future<void> _archiveRun(LabRun run) async {
-    Log.d('InboxScreen', 'Archiving run: ${run.id}');
-    final archivedRun = LabRun(
-      id: run.id,
-      createdAt: run.createdAt,
-      recipe: run.recipe,
-      batchCode: run.batchCode,
-      steps: run.steps,
-      notes: run.notes,
-      archived: true,
-      finishedAt: run.finishedAt ?? DateTime.now(),
-      formula: run.formula,
-      templateId: run.templateId,
-      ingredientChecks: run.ingredientChecks,
-    );
-    await _repository.save(archivedRun);
-    _loadRuns();
+  void _handleRunUpdated(LabRun updatedRun) {
+    setState(() {
+      final index = _runs.indexWhere((r) => r.id == updatedRun.id);
+      if (index != -1) {
+        _runs[index] = updatedRun;
+        if (_selectedRun?.id == updatedRun.id) {
+          _selectedRun = updatedRun;
+        }
+      }
+    });
+  }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Run archived'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+  void _handleRunDeleted() {
+    if (_selectedRun != null) {
+      _deleteRun(_selectedRun!);
     }
   }
 
-  Future<void> _exportRun(LabRun run) async {
-    try {
-      const encoder = JsonEncoder.withIndent('  ');
-      final formattedJson = encoder.convert(run.toJson());
-
-      await Clipboard.setData(ClipboardData(text: formattedJson));
-      Log.d('InboxScreen', 'Exported run to clipboard: ${run.id}');
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Copied'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      Log.d('InboxScreen', 'Export failed: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to export: ${e.toString()}'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
+  void _openLatestRun() {
+    if (_runs.isNotEmpty) {
+      _selectRun(_runs.first);
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final spacingScale = widget.settingsController.spacingScale;
+    final isDesktop = screenWidth >= _breakpoint;
+
+    return Scaffold(
+      body: Column(
+        children: [
+          SsPageHeader(
+            title: 'Inbox',
+            spacingScale: spacingScale,
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _runs.isEmpty
+                    ? _buildEmptyState(spacingScale)
+                    : isDesktop
+                        ? _buildDesktopLayout(spacingScale)
+                        : _buildMobileLayout(spacingScale),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(double spacingScale) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: LabSpacing.pageInsets(spacingScale),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.science_outlined,
+              size: 80 * spacingScale,
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+            ),
+            SizedBox(height: LabSpacing.gapXxl(spacingScale)),
+            Text(
+              'No active runs',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: LabSpacing.gapSm(spacingScale)),
+            Text(
+              'Import a run to get started',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: LabSpacing.gapXxl(spacingScale)),
+            FilledButton.icon(
+              onPressed: () => widget.onNavigateToTab?.call(2),
+              icon: const Icon(Icons.settings, size: 20),
+              label: const Text('Go to Settings'),
+              style: FilledButton.styleFrom(
+                padding: EdgeInsets.symmetric(
+                  horizontal: LabSpacing.gapXl(spacingScale),
+                  vertical: LabSpacing.gapLg(spacingScale),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout(double spacingScale) {
+    return Row(
+      children: [
+        // Left panel: Run list
+        Container(
+          width: 400,
+          child: RunListPanel(
+            runs: _runs,
+            selectedRun: _selectedRun,
+            onRunSelected: _selectRun,
+            onRunDeleted: _deleteRun,
+            onDeleteConfirmation: _showDeleteConfirmationDialog,
+            spacingScale: spacingScale,
+            isLoading: false,
+          ),
+        ),
+        // Right panel: Run workspace or empty state
+        Expanded(
+          child: _selectedRun != null
+              ? RunWorkspace(
+                  run: _selectedRun!,
+                  onRunUpdated: _handleRunUpdated,
+                  onRunDeleted: _handleRunDeleted,
+                  spacingScale: spacingScale,
+                )
+              : RunEmptyState(
+                  onOpenLatest: _openLatestRun,
+                  onImportRun: () {
+                    widget.onNavigateToTab?.call(2);
+                  },
+                  spacingScale: spacingScale,
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileLayout(double spacingScale) {
+    return RefreshIndicator(
+      onRefresh: _loadRuns,
+      child: ListView.builder(
+        padding: EdgeInsets.all(LabSpacing.gapLg(spacingScale)),
+        itemCount: _runs.length,
+        itemBuilder: (context, index) {
+          return _buildRunTile(_runs[index], spacingScale);
+        },
+      ),
+    );
+  }
+
+  Widget _buildRunTile(LabRun run, double spacingScale) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: LabSpacing.gapMd(spacingScale)),
+      child: Card(
+        child: ListTile(
+          contentPadding: EdgeInsets.all(LabSpacing.gapLg(spacingScale)),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  run.recipe.name,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: run.recipe.kind == RecipeKind.soap
+                      ? Colors.orange.shade100
+                      : Colors.purple.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  run.recipe.kind.displayName,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: run.recipe.kind == RecipeKind.soap
+                        ? Colors.orange.shade900
+                        : Colors.purple.shade900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          subtitle: Padding(
+            padding: EdgeInsets.only(top: LabSpacing.gapSm(spacingScale)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  DateFormatter.formatDateTime(run.createdAt),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+                SizedBox(height: LabSpacing.gapXs(spacingScale)),
+                Text(
+                  '${run.completedSteps}/${run.totalSteps}',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          trailing: Icon(
+            Icons.chevron_right,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          onTap: () => _navigateToRunDetails(run),
+        ),
+      ),
+    );
   }
 }
