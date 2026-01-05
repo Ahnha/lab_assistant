@@ -4,7 +4,7 @@ import '../../domain/lab_run.dart';
 import '../../domain/recipe_kind.dart';
 import '../../app/app_settings_controller.dart';
 import '../../ui/spacing.dart';
-import '../../ui/components/ss_page_header.dart';
+import '../../ui/branded_header.dart';
 import '../../app/widgets/primary_button.dart';
 import '../../app/widgets/secondary_button.dart';
 import '../../utils/date_formatter.dart';
@@ -67,9 +67,7 @@ class _InboxScreenState extends State<InboxScreen> {
   Future<void> _navigateToRunDetails(LabRun run) async {
     final updatedRun = await Navigator.push<LabRun>(
       context,
-      MaterialPageRoute(
-        builder: (context) => RunDetailScreen(run: run),
-      ),
+      MaterialPageRoute(builder: (context) => RunDetailScreen(run: run)),
     );
     if (updatedRun != null) {
       await _repository.save(updatedRun);
@@ -160,22 +158,22 @@ class _InboxScreenState extends State<InboxScreen> {
     final isDesktop = screenWidth >= _breakpoint;
 
     return Scaffold(
-      body: Column(
-        children: [
-          SsPageHeader(
-            title: 'Inbox',
-            spacingScale: spacingScale,
-          ),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _runs.isEmpty
-                    ? _buildEmptyState(spacingScale)
-                    : isDesktop
-                        ? _buildDesktopLayout(spacingScale)
-                        : _buildMobileLayout(spacingScale),
-          ),
-        ],
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            BrandedHeader(title: 'Inbox', spacingScale: spacingScale),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _runs.isEmpty
+                  ? _buildEmptyState(spacingScale)
+                  : isDesktop
+                  ? _buildDesktopLayout(spacingScale)
+                  : _buildMobileLayout(spacingScale),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -188,10 +186,10 @@ class _InboxScreenState extends State<InboxScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.science_outlined,
-              size: 80 * spacingScale,
-              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+            Image.asset(
+              'assets/images/logo.png',
+              height: 100 * spacingScale,
+              filterQuality: FilterQuality.high,
             ),
             SizedBox(height: LabSpacing.gapXxl(spacingScale)),
             Text(
@@ -290,8 +288,8 @@ class _InboxScreenState extends State<InboxScreen> {
                 child: Text(
                   run.recipe.name,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               Container(
@@ -323,16 +321,16 @@ class _InboxScreenState extends State<InboxScreen> {
                 Text(
                   DateFormatter.formatDateTime(run.createdAt),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 SizedBox(height: LabSpacing.gapXs(spacingScale)),
                 Text(
                   '${run.completedSteps}/${run.totalSteps}',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
               ],
             ),

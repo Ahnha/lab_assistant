@@ -8,7 +8,7 @@ import '../../app/log.dart';
 import '../../app/app_settings_controller.dart';
 import '../../ui/layout.dart';
 import '../../ui/spacing.dart';
-import '../../ui/components/ss_page_header.dart';
+import '../../ui/branded_header.dart';
 import '../../ui/widgets/ss_card.dart';
 import 'run_detail_screen.dart';
 import '../../widgets/recipe_badge.dart';
@@ -54,34 +54,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final spacingScale = widget.settingsController.spacingScale;
 
     return Scaffold(
-      body: Column(
-        children: [
-          SsPageHeader(
-            title: 'History',
-            spacingScale: spacingScale,
-          ),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _runs.isEmpty
-                    ? _buildEmptyState(spacingScale)
-                    : ConstrainedPage(
-                        spacingScale: spacingScale,
-                        child: RefreshIndicator(
-                          onRefresh: _loadRuns,
-                          child: ListView.builder(
-                            padding: EdgeInsets.symmetric(
-                              vertical: LabSpacing.gapLg(spacingScale),
-                            ),
-                            itemCount: _runs.length,
-                            itemBuilder: (context, index) {
-                              return _buildRunTile(_runs[index], spacingScale);
-                            },
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            BrandedHeader(title: 'History', spacingScale: spacingScale),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _runs.isEmpty
+                  ? _buildEmptyState(spacingScale)
+                  : ConstrainedPage(
+                      spacingScale: spacingScale,
+                      child: RefreshIndicator(
+                        onRefresh: _loadRuns,
+                        child: ListView.builder(
+                          padding: EdgeInsets.symmetric(
+                            vertical: LabSpacing.gapLg(spacingScale),
                           ),
+                          itemCount: _runs.length,
+                          itemBuilder: (context, index) {
+                            return _buildRunTile(_runs[index], spacingScale);
+                          },
                         ),
                       ),
-          ),
-        ],
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -95,29 +95,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.history_outlined,
-                size: 64 * spacingScale,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant
-                    .withOpacity(0.6),
+              Image.asset(
+                'assets/images/logo.png',
+                height: 100 * spacingScale,
+                filterQuality: FilterQuality.high,
               ),
               SizedBox(height: LabSpacing.gapXxl(spacingScale)),
               Text(
                 'No archived runs',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: LabSpacing.gapSm(spacingScale)),
               Text(
                 'Completed runs will appear here',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: LabSpacing.gapXxl(spacingScale)),
@@ -130,11 +127,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Text(
                 'Finish a run to archive it.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant
-                          .withOpacity(0.7),
-                    ),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -181,9 +177,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     Expanded(
                       child: Text(
                         run.recipe.name,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                     ),
                     RecipeBadge(kind: run.recipe.kind),
@@ -193,17 +188,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 Text(
                   'Created: ${DateFormatter.formatDateTime(run.createdAt)}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 if (run.finishedAt != null) ...[
                   SizedBox(height: LabSpacing.gapXs(spacingScale)),
                   Text(
                     'Finished: ${DateFormatter.formatDateTime(run.finishedAt!)}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
                 SizedBox(height: LabSpacing.gapSm(spacingScale)),
@@ -213,9 +208,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     Text(
                       '${run.completedSteps}/${run.totalSteps}',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
                     PopupMenuButton<String>(
                       icon: Icon(

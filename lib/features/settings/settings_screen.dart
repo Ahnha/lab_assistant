@@ -4,7 +4,7 @@ import '../../app/app_settings_controller.dart';
 import '../../app/log.dart';
 import '../../ui/layout.dart';
 import '../../ui/spacing.dart';
-import '../../ui/components/ss_page_header.dart';
+import '../../ui/branded_header.dart';
 import '../../ui/widgets/ss_section.dart';
 import '../../ui/widgets/ss_card.dart';
 import 'components/settings_toggle_row.dart';
@@ -81,138 +81,153 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final spacingScale = widget.settingsController.spacingScale;
 
     return Scaffold(
-      body: Column(
-        children: [
-          SsPageHeader(
-            title: 'Settings',
-            spacingScale: spacingScale,
-            maxWidth: 800,
-          ),
-          Expanded(
-            child: ConstrainedPage(
-              spacingScale: spacingScale,
-              maxWidth: 800,
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-              SizedBox(height: LabSpacing.gapLg(spacingScale)),
-
-              // App Version Card
-              SsCard(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            BrandedHeader(title: 'Settings', spacingScale: spacingScale),
+            Expanded(
+              child: ConstrainedPage(
                 spacingScale: spacingScale,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'App Version',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                        ),
-                        SizedBox(height: LabSpacing.gapXs(spacingScale)),
-                        Text(
-                          _appVersion,
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+                maxWidth: 800,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: LabSpacing.gapLg(spacingScale)),
 
-              // Appearance Section
-              SsSection(
-                title: 'Appearance',
-                spacingScale: spacingScale,
-                children: [
-                  ListTile(
-                    leading: Icon(
-                      Icons.palette_outlined,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    title: const Text('Theme'),
-                    subtitle: Text(
-                      _getThemeDisplayName(
-                        widget.settingsController.settings.themeKey,
+                      // App Version Card
+                      SsCard(
+                        spacingScale: spacingScale,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'App Version',
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                      ),
+                                ),
+                                SizedBox(
+                                  height: LabSpacing.gapXs(spacingScale),
+                                ),
+                                Text(
+                                  _appVersion,
+                                  style: Theme.of(context).textTheme.bodyLarge,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    trailing: Icon(
-                      Icons.chevron_right,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    contentPadding: LabSpacing.tileInsets(spacingScale),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AppearancePage(
-                            settingsController: widget.settingsController,
+
+                      // Appearance Section
+                      SsSection(
+                        title: 'Appearance',
+                        spacingScale: spacingScale,
+                        children: [
+                          ListTile(
+                            leading: Icon(
+                              Icons.palette_outlined,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            title: const Text('Theme'),
+                            subtitle: Text(
+                              _getThemeDisplayName(
+                                widget.settingsController.settings.themeKey,
+                              ),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            trailing: Icon(
+                              Icons.chevron_right,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                            contentPadding: LabSpacing.tileInsets(spacingScale),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => AppearancePage(
+                                    settingsController:
+                                        widget.settingsController,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                  SettingsToggleRow(
-                    label: 'Lab Mode',
-                    description:
-                        'Improve readability with larger text and increased padding',
-                    value: widget.settingsController.settings.labMode,
-                    onChanged: (value) {
-                      widget.settingsController.setLabMode(value);
-                    },
-                    spacingScale: spacingScale,
-                  ),
-                ],
-              ),
+                          SettingsToggleRow(
+                            label: 'Lab Mode',
+                            description:
+                                'Improve readability with larger text and increased padding',
+                            value: widget.settingsController.settings.labMode,
+                            onChanged: (value) {
+                              widget.settingsController.setLabMode(value);
+                            },
+                            spacingScale: spacingScale,
+                          ),
+                        ],
+                      ),
 
-              // Behavior Section
-              SsSection(
-                title: 'Behavior',
-                spacingScale: spacingScale,
-                children: [
-                  SettingsToggleRow(
-                    label: 'Auto-return to Steps when section complete',
-                    description:
-                        'Automatically navigate back to Steps tab when an ingredient section is completed',
-                    value: widget.settingsController.settings.autoReturnToSteps,
-                    onChanged: (value) {
-                      widget.settingsController.setAutoReturnToSteps(value);
-                    },
-                    spacingScale: spacingScale,
-                  ),
-                ],
-              ),
+                      // Behavior Section
+                      SsSection(
+                        title: 'Behavior',
+                        spacingScale: spacingScale,
+                        children: [
+                          SettingsToggleRow(
+                            label: 'Auto-return to Steps when section complete',
+                            description:
+                                'Automatically navigate back to Steps tab when an ingredient section is completed',
+                            value: widget
+                                .settingsController
+                                .settings
+                                .autoReturnToSteps,
+                            onChanged: (value) {
+                              widget.settingsController.setAutoReturnToSteps(
+                                value,
+                              );
+                            },
+                            spacingScale: spacingScale,
+                          ),
+                        ],
+                      ),
 
-              // Import / Export Section
-              SsSection(
-                title: 'Import / Export',
-                description: 'Paste JSON exported from this app to recreate a run.',
-                spacingScale: spacingScale,
-                children: [
-                  Padding(
-                    padding: LabSpacing.cardInsets(spacingScale),
-                    child: ImportRunCard(
-                      controller: _jsonController,
-                      onImport: _importRun,
-                      errorMessages: _errorMessages.isNotEmpty ? _errorMessages : null,
-                      spacingScale: spacingScale,
-                    ),
-                  ),
-                ],
-              ),
+                      // Import / Export Section
+                      SsSection(
+                        title: 'Import / Export',
+                        description:
+                            'Paste JSON exported from this app to recreate a run.',
+                        spacingScale: spacingScale,
+                        children: [
+                          Padding(
+                            padding: LabSpacing.cardInsets(spacingScale),
+                            child: ImportRunCard(
+                              controller: _jsonController,
+                              onImport: _importRun,
+                              errorMessages: _errorMessages.isNotEmpty
+                                  ? _errorMessages
+                                  : null,
+                              spacingScale: spacingScale,
+                            ),
+                          ),
+                        ],
+                      ),
 
-              SizedBox(height: LabSpacing.gapXxl(spacingScale)),
-                  ],
+                      SizedBox(height: LabSpacing.gapXxl(spacingScale)),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

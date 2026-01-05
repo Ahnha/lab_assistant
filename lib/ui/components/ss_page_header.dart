@@ -45,7 +45,7 @@ class SsPageHeader extends StatelessWidget {
                 children: [
                   if (showLogo) ...[
                     Image.asset(
-                      'assets/images/lab_logo.png',
+                      'assets/images/logo.png',
                       width: 36 * scale,
                       height: 36 * scale,
                       filterQuality: FilterQuality.high,
@@ -58,7 +58,9 @@ class SsPageHeader extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                       fontSize: 17 * scale,
                       letterSpacing: 0.3,
-                      color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
+                      color: theme.colorScheme.onSurfaceVariant.withOpacity(
+                        0.8,
+                      ),
                     ),
                   ),
                 ],
