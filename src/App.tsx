@@ -1,29 +1,54 @@
 import React from "react";
 import { Page, PageHeader, PageHeaderTitle, Card, CardContent, Button } from "@skin-studio/react";
+import { HashRouter, Routes, Route, useNavigate, useParams, useLocation, Navigate } from "react-router-dom";
 
-function SyncBanner() {
-  const [online, setOnline] = React.useState<boolean>(typeof navigator !== "undefined" ? navigator.onLine : true);
-  const [status, setStatus] = React.useState<"upToDate" | "syncing" | "pending" | "error">("upToDate");
-  const [pendingCount] = React.useState<number>(0);
+// Types
+type SyncStatus = "upToDate" | "syncing" | "pending" | "error";
 
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const handleOnline = () => setOnline(true);
-    const handleOffline = () => setOnline(false);
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
+type Run = {
+  id: string;
+  name: string;
+  sampleId?: string;
+  notes?: string;
+  status: "In Progress" | "Complete";
+  createdAt: number;
+  pendingSync?: boolean;
+};
 
-  const retry = () => {
-    // TODO: Hook to your sync manager
-    setStatus("syncing");
-    setTimeout(() => setStatus("upToDate"), 1000);
-  };
+// Local storage helpers
+const RUNS_KEY = "labAssistant.runs";
 
+function loadRuns(): Run[] {
+  try {
+    if (typeof localStorage === "undefined") return [];
+    const raw = localStorage.getItem(RUNS_KEY);
+    return raw ? (JSON.parse(raw) as Run[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRuns(runs: Run[]) {
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(RUNS_KEY, JSON.stringify(runs));
+  } catch {
+    // no-op
+  }
+}
+
+// Sync banner driven by props
+function SyncBanner({
+  online,
+  status,
+  pendingCount,
+  onRetry,
+}: {
+  online: boolean;
+  status: SyncStatus;
+  pendingCount: number;
+  onRetry: () => void;
+}) {
   const label = !online
     ? "Offline — changes will sync later"
     : status === "upToDate"
@@ -34,13 +59,17 @@ function SyncBanner() {
     ? `Pending changes (${pendingCount})`
     : "Sync failed — tap retry";
 
+  const showRetry = (status === "error" || status === "pending") && online && pendingCount > 0;
+
   return (
     <Card>
       <CardContent>
         <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
           <span aria-live="polite">{label}</span>
-          {(status === "error" || status === "pending") && (
-            <Button onClick={retry} aria-label="Retry sync">Retry</Button>
+          {showRetry && (
+            <Button onClick={onRetry} aria-label="Retry sync">
+              Retry
+            </Button>
           )}
         </div>
       </CardContent>
@@ -53,34 +82,40 @@ function QuickActions({ onStartNewRun }: { onStartNewRun: () => void }) {
     <Card>
       <CardContent>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <Button onClick={onStartNewRun} aria-label="Start a new run">New Run</Button>
-          <Button onClick={() => alert("Add Measurement…")} aria-label="Add measurement">Add Measurement</Button>
-          <Button onClick={() => alert("Attach Sample…")} aria-label="Attach sample">Attach Sample</Button>
-          <Button onClick={() => alert("Export data…")} aria-label="Export data">Export</Button>
+          <Button onClick={onStartNewRun} aria-label="Start a new run">
+            New Run
+          </Button>
+          <Button onClick={() => alert("Add Measurement…")} aria-label="Add measurement">
+            Add Measurement
+          </Button>
+          <Button onClick={() => alert("Attach Sample…")} aria-label="Attach sample">
+            Attach Sample
+          </Button>
+          <Button onClick={() => alert("Export data…")} aria-label="Export data">
+            Export
+          </Button>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function RecentRuns() {
-  // TODO: Replace with real data; show empty state if none.
-  const runs = [
-    { id: "R-1024", status: "In Progress" },
-    { id: "R-1023", status: "Complete" },
-  ];
+function RecentRuns({ runs, onOpenRun }: { runs: Run[]; onOpenRun: (id: string) => void }) {
+  const sorted = React.useMemo(() => [...runs].sort((a, b) => b.createdAt - a.createdAt), [runs]);
+
   return (
     <Card>
       <CardContent>
         <h2 style={{ marginTop: 0 }}>Recent Runs</h2>
-        {runs.length === 0 ? (
+        {sorted.length === 0 ? (
           <p>No runs yet — start your first run to see it here.</p>
         ) : (
           <ul style={{ paddingLeft: 16, margin: 0 }}>
-            {runs.map((r) => (
+            {sorted.map((r) => (
               <li key={r.id} style={{ marginBottom: 6 }}>
-                <Button onClick={() => alert(`Open ${r.id}`)} aria-label={`Open ${r.id}`}>
+                <Button onClick={() => onOpenRun(r.id)} aria-label={`Open ${r.id}`}>
                   {r.id} — {r.status}
+                  {r.pendingSync ? " (pending sync)" : ""}
                 </Button>
               </li>
             ))}
@@ -151,8 +186,12 @@ function NewRunModal({
       <div style={{ width: "min(560px, 90vw)" }} onClick={(e) => e.stopPropagation()}>
         <Card>
           <CardContent>
-            <h2 id="new-run-title" style={{ marginTop: 0 }}>Start a new run</h2>
-            <p id="new-run-desc" style={{ marginTop: 0 }}>Provide a name and optional details. You can edit later.</p>
+            <h2 id="new-run-title" style={{ marginTop: 0 }}>
+              Start a new run
+            </h2>
+            <p id="new-run-desc" style={{ marginTop: 0 }}>
+              Provide a name and optional details. You can edit later.
+            </p>
             <form onSubmit={submit}>
               <div style={{ display: "grid", gap: 12 }}>
                 <label>
@@ -189,8 +228,12 @@ function NewRunModal({
                   <p id="new-run-error" style={{ color: "#b00020", margin: 0 }}>{error}</p>
                 )}
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
-                  <Button type="button" onClick={onClose} aria-label="Cancel new run">Cancel</Button>
-                  <Button type="submit" aria-label="Create new run">Create</Button>
+                  <Button type="button" onClick={onClose} aria-label="Cancel new run">
+                    Cancel
+                  </Button>
+                  <Button type="submit" aria-label="Create new run">
+                    Create
+                  </Button>
                 </div>
               </div>
             </form>
@@ -201,36 +244,247 @@ function NewRunModal({
   );
 }
 
-function App() {
-  const [showNewRun, setShowNewRun] = React.useState(false);
+function RunDetail({
+  runs,
+  onUpdateRun,
+}: {
+  runs: Run[];
+  onUpdateRun: (id: string, patch: Partial<Run>) => void;
+}) {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const run = runs.find((r) => r.id === id);
 
-  const startNewRun = () => setShowNewRun(true);
+  if (!run) {
+    return (
+      <Card>
+        <CardContent>
+          <h2 style={{ marginTop: 0 }}>Run not found</h2>
+          <Button onClick={() => navigate("/")} aria-label="Back to home">
+            Back
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  const createRun = (data: { name: string; sampleId?: string; notes?: string }) => {
-    // TODO: Replace with real creation + navigation
-    alert(`Created run: ${data.name}`);
+  const markComplete = () => onUpdateRun(run.id, { status: "Complete" });
+  const reopen = () => onUpdateRun(run.id, { status: "In Progress" });
+
+  return (
+    <Card>
+      <CardContent>
+        <h2 style={{ marginTop: 0 }}>
+          {run.name} ({run.id})
+        </h2>
+        <p>
+          Status: {run.status}
+          {run.pendingSync ? " (pending sync)" : ""}
+        </p>
+        {run.sampleId ? <p>Sample ID: {run.sampleId}</p> : null}
+        {run.notes ? <p>Notes: {run.notes}</p> : null}
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          {run.status === "In Progress" ? (
+            <Button onClick={markComplete} aria-label="Mark run complete">
+              Mark Complete
+            </Button>
+          ) : (
+            <Button onClick={reopen} aria-label="Reopen run">
+              Reopen
+            </Button>
+          )}
+          <Button onClick={() => navigate("/")} aria-label="Back to home">
+            Back
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Home({
+  online,
+  syncStatus,
+  pendingCount,
+  onRetry,
+  runs,
+  onCreateRun,
+}: {
+  online: boolean;
+  syncStatus: SyncStatus;
+  pendingCount: number;
+  onRetry: () => void;
+  runs: Run[];
+  onCreateRun: (data: { name: string; sampleId?: string; notes?: string }) => string;
+}) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const forceNewRunOpen = location.pathname === "/run/new";
+
+  const startNewRun = () => navigate("/run/new");
+  const closeNewRun = () => navigate("/");
+
+  const handleCreate = (data: { name: string; sampleId?: string; notes?: string }) => {
+    const id = onCreateRun(data);
+    navigate(`/run/${id}`);
   };
 
   return (
-    <Page>
-      <PageHeader>
-        <PageHeaderTitle>Lab Assistant</PageHeaderTitle>
-      </PageHeader>
-
-      <SyncBanner />
+    <>
+      <SyncBanner online={online} status={syncStatus} pendingCount={pendingCount} onRetry={onRetry} />
 
       <Card>
         <CardContent>
           <p>Welcome to Lab Assistant</p>
-          <Button onClick={startNewRun} aria-label="Get started with a new run">Get Started</Button>
+          <Button onClick={startNewRun} aria-label="Get started with a new run">
+            Get Started
+          </Button>
         </CardContent>
       </Card>
 
       <QuickActions onStartNewRun={startNewRun} />
-      <RecentRuns />
+      <RecentRuns runs={runs} onOpenRun={(id) => navigate(`/run/${id}`)} />
 
-      <NewRunModal open={showNewRun} onClose={() => setShowNewRun(false)} onCreate={createRun} />
-    </Page>
+      <NewRunModal open={forceNewRunOpen} onClose={closeNewRun} onCreate={handleCreate} />
+    </>
+  );
+}
+
+function App() {
+  // Online state
+  const [online, setOnline] = React.useState<boolean>(
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
+
+  React.useEffect(() => {
+    const handleOnline = () => setOnline(true);
+    const handleOffline = () => setOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  // Runs and sync state
+  const [runs, setRuns] = React.useState<Run[]>(() => loadRuns());
+  React.useEffect(() => {
+    saveRuns(runs);
+  }, [runs]);
+
+  const pendingCount = React.useMemo(
+    () => runs.filter((r) => r.pendingSync).length,
+    [runs]
+  );
+
+  const [syncStatus, setSyncStatus] = React.useState<SyncStatus>("upToDate");
+
+  const autoSync = React.useCallback(() => {
+    if (!online) return; // wait until online
+    if (pendingCount === 0) {
+      setSyncStatus("upToDate");
+      return;
+    }
+    setSyncStatus("syncing");
+    // Simulate a short network sync
+    setTimeout(() => {
+      setRuns((prev) => prev.map((r) => (r.pendingSync ? { ...r, pendingSync: false } : r)));
+      setSyncStatus("upToDate");
+    }, 800);
+  }, [online, pendingCount]);
+
+  // When coming online or pending changes appear, try to sync
+  React.useEffect(() => {
+    if (online && pendingCount > 0) {
+      setSyncStatus("pending");
+      autoSync();
+    } else if (!online && pendingCount > 0) {
+      setSyncStatus("pending");
+    } else if (online && pendingCount === 0) {
+      setSyncStatus("upToDate");
+    }
+  }, [online, pendingCount, autoSync]);
+
+  const createRun = (data: { name: string; sampleId?: string; notes?: string }): string => {
+    const id = `R-${Date.now()}`;
+    const newRun: Run = {
+      id,
+      name: data.name,
+      sampleId: data.sampleId,
+      notes: data.notes,
+      status: "In Progress",
+      createdAt: Date.now(),
+      pendingSync: !online,
+    };
+    setRuns((prev) => [newRun, ...prev]);
+    if (!online) {
+      setSyncStatus("pending");
+    } else {
+      autoSync();
+    }
+    return id;
+  };
+
+  const updateRun = (id: string, patch: Partial<Run>) => {
+    setRuns((prev) =>
+      prev.map((r) =>
+        r.id === id
+          ? {
+              ...r,
+              ...patch,
+              // Mark as pending if offline; otherwise preserve existing pending flag
+              pendingSync: !online ? true : r.pendingSync,
+            }
+          : r
+      )
+    );
+    if (!online) {
+      setSyncStatus("pending");
+    } else {
+      autoSync();
+    }
+  };
+
+  return (
+    <HashRouter>
+      <Page>
+        <PageHeader>
+          <PageHeaderTitle>Lab Assistant</PageHeaderTitle>
+        </PageHeader>
+
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <Home
+                online={online}
+                syncStatus={syncStatus}
+                pendingCount={pendingCount}
+                onRetry={autoSync}
+                runs={runs}
+                onCreateRun={createRun}
+              />
+            }
+          />
+          <Route
+            path="/run/new"
+            element={
+              <Home
+                online={online}
+                syncStatus={syncStatus}
+                pendingCount={pendingCount}
+                onRetry={autoSync}
+                runs={runs}
+                onCreateRun={createRun}
+              />
+            }
+          />
+          <Route path="/run/:id" element={<RunDetail runs={runs} onUpdateRun={updateRun} />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Page>
+    </HashRouter>
   );
 }
 
