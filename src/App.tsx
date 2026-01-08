@@ -91,12 +91,124 @@ function RecentRuns() {
   );
 }
 
+function NewRunModal({
+  open,
+  onClose,
+  onCreate,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreate: (data: { name: string; sampleId?: string; notes?: string }) => void;
+}) {
+  const [name, setName] = React.useState("");
+  const [sampleId, setSampleId] = React.useState("");
+  const [notes, setNotes] = React.useState("");
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      setError("Run name is required");
+      return;
+    }
+    onCreate({ name: name.trim(), sampleId: sampleId.trim() || undefined, notes: notes.trim() || undefined });
+    setName("");
+    setSampleId("");
+    setNotes("");
+    setError(null);
+    onClose();
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="new-run-title"
+      aria-describedby="new-run-desc"
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(0,0,0,0.4)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+        padding: 16,
+      }}
+      onClick={onClose}
+    >
+      <div style={{ width: "min(560px, 90vw)" }} onClick={(e) => e.stopPropagation()}>
+        <Card>
+          <CardContent>
+            <h2 id="new-run-title" style={{ marginTop: 0 }}>Start a new run</h2>
+            <p id="new-run-desc" style={{ marginTop: 0 }}>Provide a name and optional details. You can edit later.</p>
+            <form onSubmit={submit}>
+              <div style={{ display: "grid", gap: 12 }}>
+                <label>
+                  <span>Run name</span>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={name}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "new-run-error" : undefined}
+                    style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #ccc" }}
+                  />
+                </label>
+                <label>
+                  <span>Sample ID (optional)</span>
+                  <input
+                    type="text"
+                    value={sampleId}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSampleId(e.target.value)}
+                    style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #ccc" }}
+                  />
+                </label>
+                <label>
+                  <span>Notes (optional)</span>
+                  <textarea
+                    value={notes}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
+                    rows={4}
+                    style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #ccc", resize: "vertical" }}
+                  />
+                </label>
+                {error && (
+                  <p id="new-run-error" style={{ color: "#b00020", margin: 0 }}>{error}</p>
+                )}
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
+                  <Button type="button" onClick={onClose} aria-label="Cancel new run">Cancel</Button>
+                  <Button type="submit" aria-label="Create new run">Create</Button>
+                </div>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 function App() {
-  // If you use a router, swap this for navigation to "/run/new".
-  const startNewRun = () => {
-    // Option A (router): navigate("/run/new")
-    // Option B (no router): open a modal or inline form
-    alert("Starting a new run… (wire this to your creation flow)");
+  const [showNewRun, setShowNewRun] = React.useState(false);
+
+  const startNewRun = () => setShowNewRun(true);
+
+  const createRun = (data: { name: string; sampleId?: string; notes?: string }) => {
+    // TODO: Replace with real creation + navigation
+    alert(`Created run: ${data.name}`);
   };
 
   return (
@@ -116,6 +228,8 @@ function App() {
 
       <QuickActions onStartNewRun={startNewRun} />
       <RecentRuns />
+
+      <NewRunModal open={showNewRun} onClose={() => setShowNewRun(false)} onCreate={createRun} />
     </Page>
   );
 }
